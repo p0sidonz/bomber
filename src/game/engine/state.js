@@ -33,7 +33,7 @@ export const POWERUP = {
 export const POWERUP_CHANCE = 0.25
 
 // ─── SPEEDS (pixels per tick at 20 ticks/sec) ───────────────────────────────
-export const SPEED_VALUES = [0, 2, 3, 4, 5] // index = speed notch
+export const SPEED_VALUES = [0, 2, 3, 4, 5, 6, 7, 8, 9] // index = speed notch
 
 // ─── INITIAL GAME STATE ──────────────────────────────────────────────────────
 export function createInitialState(grid, playerConfigs, mode = 'singleplayer') {
@@ -111,7 +111,7 @@ export function applyPowerup(player, type) {
     case POWERUP.FIRE_UP:
       player.fireRange = Math.min(8, player.fireRange + 1); break
     case POWERUP.SPEED_UP:
-      player.speed = Math.min(4, player.speed + 1); break
+      player.speed = Math.min(8, player.speed + 1); break
     case POWERUP.FULL_FIRE:
       player.fireRange = 8; break
     case POWERUP.CLOCK:

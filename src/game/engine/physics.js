@@ -56,7 +56,7 @@ export function movePlayer(player, keys, grid, bombs, skullReverse = false) {
   player.moving = true
 
   const speedNotch = player.skullEffect === 'slow' ? Math.max(1, player.speed - 2) : player.speed
-  const pixelSpeed = SPEED_VALUES[speedNotch] || 2
+  const pixelSpeed = SPEED_VALUES[speedNotch] || 4
   const { dx, dy } = DIRS[dirKey]
 
   const newPx = player.px + dx * pixelSpeed

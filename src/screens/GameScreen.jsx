@@ -123,8 +123,17 @@ export default function GameScreen({ user, room, nav }) {
         player.respawnTimer--
         if (player.respawnTimer === 0) {
           player.alive = true
-          const spawn = state.spawnPoints?.[player.slot - 1]
-          if (spawn) { player.x = spawn.x; player.y = spawn.y; player.px = spawn.x * 48; player.py = spawn.y * 48 }
+          player.powerups = []
+          player.maxBombs = 1
+          player.fireRange = 1
+          player.speed = 4
+          player.activeBombs = 0
+          player.shieldTimer = 60
+          
+          // Re-spawn at their original zone spawn
+          const spawn = state.spawnPoints?.[player.slot - 1] || { x: 1, y: 1 }
+          player.x = spawn.x; player.y = spawn.y; player.px = spawn.x * 48; player.py = spawn.y * 48
+          player.zone = player.slot - 1
         }
       }
     }

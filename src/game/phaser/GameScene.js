@@ -267,23 +267,25 @@ export default class GameScene extends Phaser.Scene {
       entry.gfx.clear()
       const r = Math.floor(TS * 0.34 * scale)
 
-      // Body
+      // Body (smooth circle)
       entry.gfx.fillStyle(C.BOMB_BODY)
-      entry.gfx.fillRect(-r, -Math.floor(r * 0.7), r * 2, Math.floor(r * 1.4))
-      entry.gfx.fillRect(-Math.floor(r * 0.7), -r, Math.floor(r * 1.4), r * 2)
-      // Shine
+      entry.gfx.fillCircle(0, 0, r)
+      
+      // Shine (smooth small circle)
       entry.gfx.fillStyle(C.BOMB_SHINE)
-      entry.gfx.fillRect(-Math.floor(r * 0.5), -Math.floor(r * 0.6), Math.floor(r * 0.45), Math.floor(r * 0.35))
+      entry.gfx.fillCircle(-r * 0.3, -r * 0.3, r * 0.3)
+      
       // Fuse
       entry.gfx.fillStyle(C.BOMB_FUSE)
-      entry.gfx.fillRect(Math.floor(r * 0.45), -r - Math.floor(r * 0.6), 2, Math.floor(r * 0.7))
+      entry.gfx.fillRect(-2, -r - 10, 4, 10)
+      
       // Spark
-      const sparkVisible = Math.sin(time / 80 * Math.PI * 2) > 0
-      if (sparkVisible) {
-        entry.gfx.fillStyle(C.BOMB_SPARK)
-        entry.gfx.fillRect(Math.floor(r * 0.3), -r - Math.floor(r * 0.8) - 3, 5, 4)
-        entry.gfx.fillStyle(0xff8800)
-        entry.gfx.fillRect(Math.floor(r * 0.2), -r - Math.floor(r * 0.8) - 6, 7, 4)
+      if (time % 200 < 100) {
+        entry.gfx.fillStyle(C.BOMB_SPARK1)
+        entry.gfx.fillCircle(0, -r - 12, 6)
+      } else {
+        entry.gfx.fillStyle(C.BOMB_SPARK2)
+        entry.gfx.fillCircle(0, -r - 12, 4)
       }
     }
 
@@ -301,34 +303,63 @@ export default class GameScene extends Phaser.Scene {
     for (const entry of this.explGfx) entry.gfx.destroy()
     this.explGfx = []
 
-    const pad = 2
-
     for (const exp of state.explosions) {
       const fade = Math.min(1, (exp.frame || 0) / 10)
       const alpha = Math.max(0.1, 1 - fade * 0.8)
       const gfx = this.add.graphics().setDepth(4).setAlpha(alpha)
 
-      for (const tile of exp.tiles) {
-        const [col, row] = tile
-        const px = col * TS + pad
-        const py = row * TS + pad
-        const sz = TS - pad * 2
-        const isCenter = col === exp.centerX && row === exp.centerY
+      // Separate tiles into horizontal and vertical arms
+      let minX = exp.centerX, maxX = exp.centerX
+      let minY = exp.centerY, maxY = exp.centerY
 
-        // Outer orange fill
-        gfx.fillStyle(0xe85000)
-        gfx.fillRect(px, py, sz, sz)
-
-        // Inner yellow-orange
-        gfx.fillStyle(0xff8800)
-        gfx.fillRect(px + 4, py + 4, sz - 8, sz - 8)
-
-        // Bright core at center
-        if (isCenter) {
-          gfx.fillStyle(0xffcc44)
-          gfx.fillRect(px + 8, py + 8, sz - 16, sz - 16)
+      for (const [col, row] of exp.tiles) {
+        if (row === exp.centerY) {
+          if (col < minX) minX = col
+          if (col > maxX) maxX = col
+        }
+        if (col === exp.centerX) {
+          if (row < minY) minY = row
+          if (row > maxY) maxY = row
         }
       }
+
+      const pad = 4
+      const drawBeam = (x1, y1, x2, y2) => {
+        const px = x1 * TS + pad
+        const py = y1 * TS + pad
+        const w = (x2 - x1 + 1) * TS - pad * 2
+        const h = (y2 - y1 + 1) * TS - pad * 2
+        
+        // Outer orange (flat rects merge perfectly into a + shape)
+        gfx.fillStyle(0xe85000)
+        gfx.fillRect(px, py, w, h)
+        // Inner yellow
+        gfx.fillStyle(0xff8800)
+        gfx.fillRect(px + 4, py + 4, Math.max(0, w - 8), Math.max(0, h - 8))
+        // Bright core line
+        gfx.fillStyle(0xffcc44)
+        gfx.fillRect(px + 10, py + 10, Math.max(0, w - 20), Math.max(0, h - 20))
+      }
+
+      // Draw vertical beam
+      if (maxY >= minY) {
+        drawBeam(exp.centerX, minY, exp.centerX, maxY)
+      }
+      
+      // Draw horizontal beam
+      if (maxX >= minX) {
+        drawBeam(minX, exp.centerY, maxX, exp.centerY)
+      }
+
+      // Bright center blast core to cover the intersection and make it look like an eruption
+      const cx = exp.centerX * TS + TS / 2
+      const cy = exp.centerY * TS + TS / 2
+      
+      gfx.fillStyle(0xffffff)
+      gfx.fillCircle(cx, cy, TS * 0.4)
+      gfx.fillStyle(0xffffee)
+      gfx.fillCircle(cx, cy, TS * 0.25)
+
       this.explGfx.push({ gfx, id: exp.id })
     }
   }
@@ -343,14 +374,18 @@ export default class GameScene extends Phaser.Scene {
         const x = pw.x * TS + TS / 2
         const y = pw.y * TS + TS / 2
         const gfx = this.add.graphics().setDepth(2).setPosition(x, y)
-        const sz = TS - 6
+        const sz = TS - 8
         const half = sz / 2
         const color = PW_HEX[pw.type] || 0xffffff
+        // Shadow base
+        gfx.fillStyle(0x000000, 0.4)
+        gfx.fillRoundedRect(-half + 2, -half + 2, sz, sz, 8)
+        // Main pill shape
         gfx.fillStyle(color)
-        gfx.fillRect(-half, -half, sz, sz)
-        gfx.fillStyle(0x000000, 0.5)
-        gfx.fillRect(half - 2, -half + 1, 2, sz - 1)
-        gfx.fillRect(-half + 1, half - 2, sz - 1, 2)
+        gfx.fillRoundedRect(-half, -half, sz, sz, 8)
+        // Inner detail ring
+        gfx.lineStyle(2, 0xffffff, 0.6)
+        gfx.strokeRoundedRect(-half + 4, -half + 4, sz - 8, sz - 8, 4)
 
         const txt = this.add.text(x, y, PW_ICONS[pw.type] || '?', {
           fontSize: `${Math.floor(sz * 0.5)}px`,
@@ -455,45 +490,39 @@ export default class GameScene extends Phaser.Scene {
     if (enemy.type === 'BossBomb') {
       // Large boss
       gfx.fillStyle(color)
-      gfx.fillRect(-14, -12 + bob, 28, 22)
-      gfx.fillRect(-10, -16 + bob, 20, 5)
-      gfx.fillRect(-16, -8 + bob, 3, 16)
-      gfx.fillRect(13, -8 + bob, 3, 16)
-      gfx.fillRect(-10, 10 + bob, 20, 4)
+      gfx.fillCircle(0, bob, 16)
+      gfx.fillRoundedRect(-12, -18 + bob, 24, 8, 4)
       // Crown
       gfx.fillStyle(0xf0c040)
-      for (let i = -1; i <= 1; i++) gfx.fillRect(i * 8 - 2, -19 + bob, 4, 5)
+      for (let i = -1; i <= 1; i++) gfx.fillCircle(i * 8, -20 + bob, 4)
       // Eyes
       gfx.fillStyle(0xffffff)
-      gfx.fillRect(-9, -5 + bob, 7, 6); gfx.fillRect(2, -5 + bob, 7, 6)
+      gfx.fillCircle(-6, -2 + bob, 5); gfx.fillCircle(6, -2 + bob, 5)
       gfx.fillStyle(0xff0000)
-      gfx.fillRect(-7, -3 + bob, 3, 3); gfx.fillRect(4, -3 + bob, 3, 3)
+      gfx.fillCircle(-6, -2 + bob, 2); gfx.fillCircle(6, -2 + bob, 2)
       // HP bar
       gfx.fillStyle(0x440000)
-      gfx.fillRect(-TS / 2 + 2, -TS / 2 - 4, TS - 4, 5)
+      gfx.fillRoundedRect(-TS / 2 + 2, -TS / 2 - 4, TS - 4, 5, 2)
       gfx.fillStyle(0xee0000)
-      gfx.fillRect(-TS / 2 + 2, -TS / 2 - 4, Math.floor((TS - 4) * (enemy.hp / 5)), 5)
+      gfx.fillRoundedRect(-TS / 2 + 2, -TS / 2 - 4, Math.floor((TS - 4) * (enemy.hp / 5)), 5, 2)
       return
     }
 
-    // Generic round body
-    const r = enemy.type === 'Titan' ? 12 : 9
+    // Generic smooth round body
+    const r = enemy.type === 'Titan' ? 14 : 11
     gfx.fillStyle(color)
-    gfx.fillRect(-r, -r + bob, r * 2, r * 2)
-    gfx.fillRect(-r + 2, -r - 2 + bob, r * 2 - 4, 3)
-    gfx.fillRect(-r - 2, -r + 2 + bob, 3, r * 2 - 4)
-    gfx.fillRect(r - 1, -r + 2 + bob, 3, r * 2 - 4)
-    gfx.fillRect(-r + 2, r - 1 + bob, r * 2 - 4, 3)
+    gfx.fillCircle(0, bob, r)
 
     // Eyes
     gfx.fillStyle(0xffffff)
-    gfx.fillRect(-7, -4 + bob, 5, 5); gfx.fillRect(2, -4 + bob, 5, 5)
+    gfx.fillCircle(-5, -2 + bob, 4); gfx.fillCircle(5, -2 + bob, 4)
     gfx.fillStyle(0x111111)
-    gfx.fillRect(-6, -3 + bob, 3, 3); gfx.fillRect(3, -3 + bob, 3, 3)
+    gfx.fillCircle(-5, -2 + bob, 2); gfx.fillCircle(5, -2 + bob, 2)
 
     // Feet
     gfx.fillStyle(0x1a1a1a)
-    gfx.fillRect(-7, r - 1 + bob, 5, 4); gfx.fillRect(2, r - 1 + bob, 5, 4)
+    gfx.fillRoundedRect(-8, r - 2 + bob, 6, 5, 2)
+    gfx.fillRoundedRect(2, r - 2 + bob, 6, 5, 2)
 
     // Multi-HP bar
     if (enemy.hp > 1 && enemy.type !== 'BossBomb') {
@@ -565,35 +594,32 @@ export default class GameScene extends Phaser.Scene {
     const legA = frame === 0 ? 4 : 2
     const legB = frame === 0 ? 2 : 4
 
-    // Head
+    // Head (smooth)
     gfx.fillStyle(0xf0f0f0)
-    gfx.fillRect(-7, -15 + bob, 14, 11)
-    gfx.fillRect(-5, -17 + bob, 10, 2) // rounded top
-    gfx.fillRect(-9, -13 + bob, 2, 7)  // round L
-    gfx.fillRect(7, -13 + bob, 2, 7)   // round R
+    gfx.fillRoundedRect(-9, -17 + bob, 18, 14, 5)
 
     // Eyes (direction)
     gfx.fillStyle(0x111111)
     if (player.dir === 'up') {
-      gfx.fillRect(-5, -13 + bob, 3, 3); gfx.fillRect(2, -13 + bob, 3, 3)
+      gfx.fillCircle(-3, -12 + bob, 2); gfx.fillCircle(3, -12 + bob, 2)
     } else if (player.dir === 'left') {
-      gfx.fillRect(-8, -11 + bob, 3, 3)
+      gfx.fillCircle(-6, -10 + bob, 2)
     } else if (player.dir === 'right') {
-      gfx.fillRect(5, -11 + bob, 3, 3)
+      gfx.fillCircle(6, -10 + bob, 2)
     } else {
-      gfx.fillRect(-5, -11 + bob, 3, 3); gfx.fillRect(2, -11 + bob, 3, 3)
+      gfx.fillCircle(-3, -10 + bob, 2); gfx.fillCircle(3, -10 + bob, 2)
     }
 
     // Body
     gfx.fillStyle(0xf0f0f0)
-    gfx.fillRect(-9, -4 + bob, 18, 14)
+    gfx.fillRoundedRect(-10, -4 + bob, 20, 15, 4)
     gfx.fillStyle(color)
-    gfx.fillRect(-7, -2 + bob, 14, 9)
+    gfx.fillRoundedRect(-8, -2 + bob, 16, 11, 3)
 
     // Legs
     gfx.fillStyle(0x222222)
-    gfx.fillRect(-7, 10 + bob, 5, legA)
-    gfx.fillRect(2, 10 + bob, 5, legB)
+    gfx.fillRoundedRect(-8, 10 + bob, 6, legA, 2)
+    gfx.fillRoundedRect(2, 10 + bob, 6, legB, 2)
 
     // Skull curse overlay
     if (player.skullEffect) {
@@ -642,6 +668,14 @@ export default class GameScene extends Phaser.Scene {
     if (myPlayer && myPlayer.alive) {
       this.camTarget.x = myPlayer.px + TS / 2
       this.camTarget.y = myPlayer.py + TS / 2
+      
+      // Bound the camera strictly to the current player's zone
+      if (this.mode === 'multiplayer' && state.zoneWidth) {
+        const zoneStartX = myPlayer.zone * (state.zoneWidth + state.dividerWidth) * TS
+        const totalHeight = state.grid.length * TS
+        const totalWidth = state.zoneWidth * TS
+        this.cameras.main.setBounds(zoneStartX, 0, totalWidth, totalHeight)
+      }
     }
   }
 }

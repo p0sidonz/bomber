@@ -217,6 +217,8 @@ export default function GameScreen({ user, room, nav }) {
 
   function checkWinCondition(state) {
     if (state.status === 'finished') return
+    // Grace period: don't check win in the first 3 seconds
+    if (state.tick < 60) return
     const alive = Object.values(state.players).filter(p => p.alive)
 
     // Gate Rush: gate opens when all enemies are dead

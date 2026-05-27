@@ -134,7 +134,7 @@ export default function GameScreen({ user, room, nav }) {
           player.powerups = []
           player.maxBombs = 1
           player.fireRange = 1
-          player.speed = 4
+          player.speed = 8
           player.activeBombs = 0
           player.shieldTimer = 60
           

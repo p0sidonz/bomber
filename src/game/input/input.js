@@ -16,6 +16,14 @@ export function destroyInput() {
   pressedKeys.clear()
 }
 
+export function setVirtualKey(code, isPressed) {
+  if (isPressed) {
+    pressedKeys.add(code)
+  } else {
+    pressedKeys.delete(code)
+  }
+}
+
 // ─── KEY MAPS ─────────────────────────────────────────────────────────────────
 // Online multiplayer: everyone controls their own character
 const ONLINE_KEYS = {

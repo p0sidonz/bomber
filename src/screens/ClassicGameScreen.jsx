@@ -8,6 +8,7 @@ import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM } from '../game/audio/audio.js'
 import { insertHighScore } from '../supabase.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
+import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50 // ms per game tick (20 tps)
 const DEBUG = true // set to false to hide debug buttons
@@ -287,6 +288,9 @@ export default function ClassicGameScreen({ user, nav }) {
       }}>
         ← → ↑ ↓ MOVE · SPACE BOMB · ESC PAUSE
       </div>
+
+      {/* Mobile Touch Controls */}
+      <MobileControls />
 
       {/* Debug buttons */}
       {DEBUG && (

@@ -9,6 +9,7 @@ import { sfx, playBGM, stopBGM } from '../game/audio/audio.js'
 import { subscribeGame, unsubscribeGame, broadcastInput, broadcastState } from '../game/multiplayer/channels.js'
 import { getRoomPlayers } from '../supabase.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
+import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50
 
@@ -410,6 +411,9 @@ export default function GameScreen({ user, room, nav }) {
         ← → ↑ ↓ MOVE · SPACE BOMB
         {spectating && <span style={{ color: '#e03040', marginLeft: 16 }}>SPECTATING</span>}
       </div>
+
+      {/* Mobile Touch Controls */}
+      <MobileControls />
 
       {gameOver && (
         <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 30 }}>

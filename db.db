@@ -1,0 +1,95 @@
+-- Multiplayer rooms
+create table rooms (
+  id uuid primary key default gen_random_uuid(),
+  code text unique not null,           -- 6-char room code e.g. "BOM247"
+  host_id uuid references auth.users,
+  status text default 'waiting',       -- waiting | countdown | active | finished
+  map_id int default 1,
+  match_type text default 'last_standing', -- last_standing | most_kills | territory | gate_rush
+  created_at timestamptz default now()
+);
+
+-- Players in a room
+create table room_players (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid references rooms on delete cascade,
+  user_id uuid references auth.users,
+  display_name text,
+  color text,                          -- red | blue | green | yellow | purple | orange
+  slot int,                            -- 1-6
+  is_ready boolean default false,
+  is_alive boolean default true,
+  kills int default 0,
+  joined_at timestamptz default now()
+);
+
+-- Game state (one row per active room, updated continuously)
+create table game_state (
+  room_id uuid primary key references rooms on delete cascade,
+  tick int default 0,                  -- increments every game loop broadcast
+  state jsonb,                         -- full serialized game state (see below)
+  updated_at timestamptz default now()
+);
+
+-- Leaderboard (all-time stats)
+create table leaderboard (
+  user_id uuid primary key references auth.users,
+  display_name text,
+  wins int default 0,
+  kills int default 0,
+  games_played int default 0,
+  best_single_player_score int default 0,
+  updated_at timestamptz default now()
+);
+
+-- Classic mode high scores
+create table high_scores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users,
+  display_name text,
+  score int,
+  level_reached int,
+  created_at timestamptz default now()
+);
+
+
+-- ════════════════════════════════════════════════════
+-- RLS POLICIES FOR BOMBERMAN TABLES
+-- ════════════════════════════════════════════════════
+
+-- ─── ROOMS ───────────────────────────────────────────
+alter table rooms enable row level security;
+
+create policy "Anyone can read rooms"       on rooms for select using (true);
+create policy "Auth users can create rooms" on rooms for insert with check (auth.uid() = host_id);
+create policy "Host can update own room"    on rooms for update using (auth.uid() = host_id);
+create policy "Host can delete own room"    on rooms for delete using (auth.uid() = host_id);
+
+-- ─── ROOM_PLAYERS ────────────────────────────────────
+alter table room_players enable row level security;
+
+create policy "Anyone can read room_players"  on room_players for select using (true);
+create policy "Auth users can join rooms"     on room_players for insert with check (auth.uid() = user_id);
+create policy "Players can update own record" on room_players for update using (auth.uid() = user_id);
+create policy "Players can leave rooms"       on room_players for delete using (auth.uid() = user_id);
+
+-- ─── GAME_STATE ──────────────────────────────────────
+alter table game_state enable row level security;
+
+create policy "Anyone can read game_state"   on game_state for select using (true);
+create policy "Auth users can insert state"  on game_state for insert with check (true);
+create policy "Auth users can update state"  on game_state for update using (true);
+
+-- ─── LEADERBOARD ─────────────────────────────────────
+alter table leaderboard enable row level security;
+
+create policy "Anyone can read leaderboard"     on leaderboard for select using (true);
+create policy "Users can insert own scores"     on leaderboard for insert with check (auth.uid() = user_id);
+create policy "Users can update own leaderboard" on leaderboard for update using (auth.uid() = user_id);
+
+-- ─── HIGH_SCORES ─────────────────────────────────────
+alter table high_scores enable row level security;
+
+create policy "Anyone can read high_scores"  on high_scores for select using (true);
+create policy "Users can insert own scores"  on high_scores for insert with check (auth.uid() = user_id);
+

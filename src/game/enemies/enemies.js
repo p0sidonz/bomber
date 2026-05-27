@@ -55,7 +55,7 @@ export function updateEnemies(state) {
     // ── AI DECISION (periodic based on speed) ──────────────────────────
     // Only fire AI when smooth movement is complete (enemy has arrived at tile)
     const atTarget = Math.abs(enemy.px - enemy.x * 48) < 2 && Math.abs(enemy.py - enemy.y * 48) < 2
-    const moveInterval = Math.max(1, Math.round(7 / (enemy.speed || 2)))
+    const moveInterval = Math.max(1, Math.round(40 / (enemy.speed || 2)))
     enemy.moveTimer = (enemy.moveTimer || 0) + 1
     if (enemy.moveTimer >= moveInterval && atTarget) {
       enemy.moveTimer = 0
@@ -107,7 +107,8 @@ export function updateEnemies(state) {
     // Gradually move px/py toward the tile position for smooth visual movement
     const targetPx = enemy.x * 48
     const targetPy = enemy.y * 48
-    const moveSpeed = Math.max(4, (enemy.speed || 2) * 3.5)
+    const currentMoveInterval = Math.max(1, Math.round(40 / (enemy.speed || 2)))
+    const moveSpeed = 48 / currentMoveInterval
     const ddx = targetPx - enemy.px
     const ddy = targetPy - enemy.py
     if (Math.abs(ddx) > 0.5) enemy.px += Math.sign(ddx) * Math.min(Math.abs(ddx), moveSpeed)

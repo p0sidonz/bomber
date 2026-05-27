@@ -180,6 +180,10 @@ export default function GameScreen({ user, room, nav }) {
   function checkPortalTeleport(state) {
     for (const player of Object.values(state.players)) {
       if (!player.alive) continue
+      if ((player.teleportCooldown || 0) > 0) {
+        player.teleportCooldown--
+        continue
+      }
       for (const portal of state.portals || []) {
         if (!portal.revealed) continue
         if (player.x === portal.x && player.y === portal.y) {
@@ -189,8 +193,11 @@ export default function GameScreen({ user, room, nav }) {
           player.px = portal.targetX * 48
           player.py = portal.targetY * 48
           player.zone = portal.targetZone
-          // Small cooldown to avoid instant back-teleport
-          player.shieldTimer = Math.max(player.shieldTimer || 0, 10)
+          // Cooldown to avoid instant back-teleport (20 ticks = 1 second)
+          player.teleportCooldown = 20
+          
+          // Also give them a brief invincibility shield
+          player.shieldTimer = Math.max(player.shieldTimer || 0, 20)
           break
         }
       }
@@ -326,6 +333,62 @@ export default function GameScreen({ user, room, nav }) {
         <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 30 }}>
           <div className="text-3xl">💣</div>
           <h2 className="text-pixel text-bm-accent" style={{ fontSize: '10px' }}>LOADING MAP...</h2>
+        </div>
+      )}
+
+      {/* Debug Buttons */}
+      {gameReady && (
+        <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50, display: 'flex', gap: 8 }}>
+          <button
+            style={{
+              padding: '4px 10px', fontSize: '8px',
+              fontFamily: '"Press Start 2P", monospace',
+              background: '#e03040', color: '#fff', border: 'none',
+              cursor: 'pointer', borderRadius: 4,
+            }}
+            onClick={() => {
+              const s = stateRef.current
+              if (!s) return
+              for (const enemy of s.enemies || []) {
+                enemy.alive = false
+                enemy.deathFrame = 0
+              }
+            }}
+          >☠ KILL ALL</button>
+          <button
+            style={{
+              padding: '4px 10px', fontSize: '8px',
+              fontFamily: '"Press Start 2P", monospace',
+              background: '#f0c040', color: '#111', border: 'none',
+              cursor: 'pointer', borderRadius: 4,
+            }}
+            onClick={() => {
+              const s = stateRef.current
+              if (!s) return
+              for (let y = 0; y < s.grid.length; y++) {
+                for (let x = 0; x < s.grid[y].length; x++) {
+                  if (s.grid[y][x] === 2) { // SOFT
+                    s.grid[y][x] = 0 // EMPTY
+                  }
+                }
+              }
+              // Reveal gates
+              for (let i = 0; i < (s.hiddenGateTiles || []).length; i++) {
+                const gateTile = s.hiddenGateTiles[i]
+                if (gateTile) {
+                  s.grid[gateTile[1]][gateTile[0]] = 3 // GATE
+                  s.hiddenGateTiles[i] = null
+                }
+              }
+              // Reveal portals
+              for (const portal of s.portals || []) {
+                if (!portal.revealed) {
+                  s.grid[portal.y][portal.x] = 4 // PORTAL
+                  portal.revealed = true
+                }
+              }
+            }}
+          >💥 BLAST WALLS</button>
         </div>
       )}
 

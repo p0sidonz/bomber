@@ -33,7 +33,7 @@ export const POWERUP = {
 export const POWERUP_CHANCE = 0.25
 
 // ─── SPEEDS (pixels per tick at 20 ticks/sec) ───────────────────────────────
-export const SPEED_VALUES = [0, 2, 3, 4, 5, 6, 7, 8, 9] // index = speed notch
+export const SPEED_VALUES = [0, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5] // index = speed notch
 
 // ─── INITIAL GAME STATE ──────────────────────────────────────────────────────
 export function createInitialState(grid, playerConfigs, mode = 'singleplayer') {

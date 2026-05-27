@@ -23,6 +23,7 @@ export default function GameScreen({ user, room, nav }) {
   const [spectating, setSpectating] = useState(false)
   const [hudData, setHudData] = useState(null)
   const bombPressedRef = useRef(false)
+  const clientBombStateRef = useRef({})
   const myUserId = user?.id
 
   async function initGame() {
@@ -73,6 +74,13 @@ export default function GameScreen({ user, room, nav }) {
       if (!player || !player.alive) continue
       const skullReverse = player.skullEffect === 'reverse'
       movePlayer(player, keys, state.grid, state.bombs, skullReverse)
+      
+      const bombPressed = keys.bomb
+      if (bombPressed && !clientBombStateRef.current[userId]) {
+        plantBomb(state, userId)
+        sfx.bombPlant()
+      }
+      clientBombStateRef.current[userId] = bombPressed
     }
 
     // Passability — pixel overlap check to avoid stuck-on-bomb bug

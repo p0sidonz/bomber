@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { generateLevel, generateMultiplayerMap, SP_COLS, SP_ROWS } from '../game/levels/generator.js'
+import { generateMultiplayerZones } from '../game/levels/generator.js'
 import { createInitialState, TILE } from '../game/engine/state.js'
-import { movePlayer, checkPortalGates, updateSlidingBombs, interpolateStates } from '../game/engine/physics.js'
-import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups, updateGates, killPlayer } from '../game/engine/bombs.js'
+import { movePlayer, updateSlidingBombs } from '../game/engine/physics.js'
+import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM } from '../game/audio/audio.js'
@@ -28,91 +28,37 @@ export default function GameScreen({ user, room, nav }) {
   async function initGame() {
     const players = await getRoomPlayers(room.id)
 
-    // Generate a singleplayer-style map (wide, with enemies and a hidden gate)
-    const levelData = generateLevel(1) // Level 1 difficulty for multiplayer
-    const grid = levelData.grid
-
-    // Spawn points at safe corners of the 30×11 map
-    const mpSpawns = [
-      { x: 1, y: 1 },
-      { x: SP_COLS - 2, y: SP_ROWS - 2 },
-      { x: 1, y: SP_ROWS - 2 },
-      { x: SP_COLS - 2, y: 1 },
-      { x: Math.floor(SP_COLS / 2), y: 1 },
-      { x: Math.floor(SP_COLS / 2), y: SP_ROWS - 2 },
-    ]
-
-    // Clear spawn zones for each player
-    for (let i = 0; i < players.length; i++) {
-      const sp = mpSpawns[i]
-      const clears = [[sp.x,sp.y],[sp.x+1,sp.y],[sp.x,sp.y+1],[sp.x-1,sp.y],[sp.x,sp.y-1]]
-      for (const [cx, cy] of clears) {
-        if (cy >= 0 && cy < grid.length && cx >= 0 && cx < grid[0].length && grid[cy][cx] !== TILE.SOLID) {
-          grid[cy][cx] = TILE.EMPTY
-        }
-      }
-    }
+    // Generate zone-based map: each player gets their own solo-style zone
+    const zoneData = generateMultiplayerZones(players.length)
 
     const playerConfigs = players.map((p, i) => ({
       userId: p.user_id,
       name: p.display_name,
       color: p.color,
       slot: p.slot,
-      startX: mpSpawns[i]?.x || 1,
-      startY: mpSpawns[i]?.y || 1,
+      startX: zoneData.spawnPoints[i]?.x || 1,
+      startY: zoneData.spawnPoints[i]?.y || 1,
     }))
 
-    const state = createInitialState(grid, playerConfigs, 'multiplayer')
-    state.enemies = levelData.enemies
-    state.hiddenGateTile = levelData.hiddenGateTile
+    const state = createInitialState(zoneData.grid, playerConfigs, 'multiplayer')
+    state.enemies = zoneData.enemies
+    state.portals = zoneData.portals          // portal info per zone
+    state.hiddenGateTiles = zoneData.hiddenGateTiles  // one exit gate per zone
     state.gateVisible = false
     state.matchType = 'gate_rush'
     state.timer = 99999
+    state.zoneWidth = zoneData.zoneWidth
+    state.dividerWidth = zoneData.dividerWidth
 
-    // Move enemies away from all player spawn zones (5-tile radius)
-    const spawnSet = new Set()
-    for (let i = 0; i < players.length; i++) {
-      const sp = mpSpawns[i]
-      for (let dy = -3; dy <= 3; dy++) {
-        for (let dx = -3; dx <= 3; dx++) {
-          spawnSet.add(`${sp.x + dx},${sp.y + dy}`)
-        }
-      }
-    }
-    for (const enemy of state.enemies) {
-      if (spawnSet.has(`${enemy.x},${enemy.y}`)) {
-        // Find a safe position far from all spawns
-        const safePos = state.enemies.length > 0
-          ? findSafeEnemyPos(grid, spawnSet)
-          : null
-        if (safePos) {
-          enemy.x = safePos[0]; enemy.y = safePos[1]
-          enemy.px = safePos[0] * 48; enemy.py = safePos[1] * 48
-        }
-      }
-    }
-
-    // Give all players a spawn shield (3 seconds)
-    for (const player of Object.values(state.players)) {
-      player.shieldTimer = 60 // 60 ticks = 3 seconds at 20tps
-    }
+    // Assign each player to their zone
+    Object.values(state.players).forEach((p, i) => {
+      p.zone = i
+      p.shieldTimer = 60  // 3-second spawn shield
+    })
 
     stateRef.current = state
     setGameReady(true)
     playBGM('world1')
-  }
-
-  function findSafeEnemyPos(grid, spawnSet) {
-    const rows = grid.length, cols = grid[0].length
-    const candidates = []
-    for (let y = 1; y < rows - 1; y++) {
-      for (let x = 1; x < cols - 1; x++) {
-        if (grid[y][x] === TILE.EMPTY && !spawnSet.has(`${x},${y}`)) {
-          candidates.push([x, y])
-        }
-      }
-    }
-    return candidates[Math.floor(Math.random() * candidates.length)] || null
   }
 
   function hostTick() {
@@ -164,9 +110,9 @@ export default function GameScreen({ user, room, nav }) {
     updateExplosions(state)
     updateEnemies(state)
     checkPowerupPickups(state)
-    updateGates(state)
     updateSlidingBombs(state.bombs, state.grid, state.players)
-    checkPortalGatesTick(state)
+    checkPortalReveals(state)
+    checkPortalTeleport(state)
 
     // Skull timers
     for (const player of Object.values(state.players)) {
@@ -209,9 +155,36 @@ export default function GameScreen({ user, room, nav }) {
     })
   }
 
-  function checkPortalGatesTick(state) {
+  // Check if portals should be revealed (soft block was destroyed)
+  function checkPortalReveals(state) {
+    for (const portal of state.portals || []) {
+      if (portal.revealed) continue
+      // If the soft block hiding the portal was destroyed (now EMPTY), reveal it
+      if (state.grid[portal.y] && state.grid[portal.y][portal.x] === TILE.EMPTY) {
+        state.grid[portal.y][portal.x] = 4  // 4 = PORTAL tile
+        portal.revealed = true
+      }
+    }
+  }
+
+  // Check if any player is standing on a revealed portal → teleport
+  function checkPortalTeleport(state) {
     for (const player of Object.values(state.players)) {
-      if (player.alive) checkPortalGates(player, state.gates || [])
+      if (!player.alive) continue
+      for (const portal of state.portals || []) {
+        if (!portal.revealed) continue
+        if (player.x === portal.x && player.y === portal.y) {
+          // Teleport to target zone's portal position
+          player.x = portal.targetX
+          player.y = portal.targetY
+          player.px = portal.targetX * 48
+          player.py = portal.targetY * 48
+          player.zone = portal.targetZone
+          // Small cooldown to avoid instant back-teleport
+          player.shieldTimer = Math.max(player.shieldTimer || 0, 10)
+          break
+        }
+      }
     }
   }
 
@@ -221,28 +194,29 @@ export default function GameScreen({ user, room, nav }) {
     if (state.tick < 60) return
     const alive = Object.values(state.players).filter(p => p.alive)
 
-    // Gate Rush: gate opens when all enemies are dead
-    const enemiesAlive = (state.enemies || []).filter(e => e.alive)
-    if (enemiesAlive.length === 0 && state.hiddenGateTile) {
-      // Reveal the gate
-      const [gx, gy] = state.hiddenGateTile
-      state.grid[gy][gx] = TILE.GATE
-      state.gateVisible = true
-      state.hiddenGateTile = null
+    // Per-zone gate reveal: when all enemies in a zone are dead, reveal that zone's gate
+    for (let z = 0; z < (state.hiddenGateTiles || []).length; z++) {
+      const gateTile = state.hiddenGateTiles[z]
+      if (!gateTile) continue // already revealed
+      const zoneEnemies = (state.enemies || []).filter(e => e.zone === z && e.alive)
+      if (zoneEnemies.length === 0) {
+        // Reveal exit gate for this zone
+        const [gx, gy] = gateTile
+        state.grid[gy][gx] = TILE.GATE
+        state.hiddenGateTiles[z] = null
+      }
     }
 
-    // Check if any player reached the gate
-    if (state.gateVisible) {
-      for (const player of alive) {
-        const grid = state.grid
-        if (grid[player.y] && grid[player.y][player.x] === TILE.GATE) {
-          state.status = 'finished'
-          state.winner = player.userId
-          setGameOver(true)
-          stopBGM()
-          setTimeout(() => nav('results', { result: buildResult(state) }), 2000)
-          return
-        }
+    // Check if any player reached an exit gate
+    for (const player of alive) {
+      const grid = state.grid
+      if (grid[player.y] && grid[player.y][player.x] === TILE.GATE) {
+        state.status = 'finished'
+        state.winner = player.userId
+        setGameOver(true)
+        stopBGM()
+        setTimeout(() => nav('results', { result: buildResult(state) }), 2000)
+        return
       }
     }
 

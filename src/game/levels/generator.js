@@ -183,6 +183,139 @@ function getEnemyDefaults(type) {
   return defaults[type] || defaults.Ballom
 }
 
+// ─── MULTIPLAYER ZONES (each player gets their own solo-style zone) ───────────
+export function generateMultiplayerZones(playerCount) {
+  const zoneW = SP_COLS  // 30 columns per zone
+  const zoneH = SP_ROWS  // 11 rows
+  const dividerW = 1     // 1 column of solid walls between zones
+  const totalCols = zoneW * playerCount + dividerW * (playerCount - 1)
+  const totalRows = zoneH
+
+  // Create full grid (all EMPTY)
+  const grid = Array.from({ length: totalRows }, () => Array(totalCols).fill(TILE.EMPTY))
+
+  const allEnemies = []
+  const portals = []
+  const spawnPoints = []
+  const hiddenGateTiles = []  // one per zone
+
+  for (let z = 0; z < playerCount; z++) {
+    const offX = z * (zoneW + dividerW)  // column offset for this zone
+
+    // ── Build zone borders ──
+    for (let y = 0; y < zoneH; y++) {
+      grid[y][offX] = TILE.SOLID                   // left wall
+      grid[y][offX + zoneW - 1] = TILE.SOLID       // right wall
+    }
+    for (let x = offX; x < offX + zoneW; x++) {
+      grid[0][x] = TILE.SOLID                       // top wall
+      grid[zoneH - 1][x] = TILE.SOLID               // bottom wall
+    }
+
+    // ── Checkerboard pillars ──
+    for (let y = 2; y < zoneH - 1; y += 2) {
+      for (let x = offX + 2; x < offX + zoneW - 1; x += 2) {
+        grid[y][x] = TILE.SOLID
+      }
+    }
+
+    // ── Soft blocks ──
+    const spawnClear = new Set()
+    const spawnX = offX + 1, spawnY = 1
+    // Clear spawn area (top-left of zone)
+    const clears = [[spawnX, spawnY], [spawnX+1, spawnY], [spawnX, spawnY+1], [spawnX+1, spawnY+1], [spawnX+2, spawnY], [spawnX, spawnY+2]]
+    for (const [cx, cy] of clears) spawnClear.add(`${cx},${cy}`)
+
+    const zoneEmpty = []
+    for (let y = 1; y < zoneH - 1; y++) {
+      for (let x = offX + 1; x < offX + zoneW - 1; x++) {
+        if (grid[y][x] === TILE.EMPTY && !spawnClear.has(`${x},${y}`)) {
+          zoneEmpty.push([x, y])
+        }
+      }
+    }
+    // Shuffle
+    for (let i = zoneEmpty.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [zoneEmpty[i], zoneEmpty[j]] = [zoneEmpty[j], zoneEmpty[i]]
+    }
+    const softCount = Math.floor(zoneEmpty.length * 0.30)  // 30% density for MP
+    const softTiles = []
+    for (let i = 0; i < zoneEmpty.length && i < softCount; i++) {
+      const [sx, sy] = zoneEmpty[i]
+      grid[sy][sx] = TILE.SOFT
+      softTiles.push([sx, sy])
+    }
+
+    // ── Exit gate (hidden under random soft block) ──
+    const gateTile = softTiles[Math.floor(Math.random() * softTiles.length)] || [offX + zoneW - 2, zoneH - 2]
+    hiddenGateTiles.push(gateTile)
+
+    // ── Portal tile (hidden under a DIFFERENT soft block) ──
+    const portalCandidates = softTiles.filter(t => t[0] !== gateTile[0] || t[1] !== gateTile[1])
+    const portalTile = portalCandidates[Math.floor(Math.random() * portalCandidates.length)] || [offX + Math.floor(zoneW / 2), Math.floor(zoneH / 2)]
+    // Mark portal info (will be stored in state, not in grid yet)
+    portals.push({ zone: z, x: portalTile[0], y: portalTile[1], revealed: false })
+
+    // ── Enemies ──
+    const enemyPoints = []
+    for (let y = 1; y < zoneH - 1; y++) {
+      for (let x = offX + 1; x < offX + zoneW - 1; x++) {
+        if (grid[y][x] === TILE.EMPTY) {
+          const dist = Math.abs(x - spawnX) + Math.abs(y - spawnY)
+          if (dist >= 6) enemyPoints.push([x, y])
+        }
+      }
+    }
+    enemyPoints.sort(() => Math.random() - 0.5)
+    const enemyCount = 8
+    const enemyPool = ['Ballom', 'Oneal', 'Dahl']
+    for (let i = 0; i < enemyCount && i < enemyPoints.length; i++) {
+      const pos = enemyPoints[i]
+      const type = enemyPool[Math.floor(Math.random() * enemyPool.length)]
+      allEnemies.push({
+        id: `enemy-z${z}-${i}`,
+        type,
+        x: pos[0], y: pos[1],
+        px: pos[0] * 48, py: pos[1] * 48,
+        alive: true, hp: 1,
+        dir: 'right', moveTimer: 0, frame: 0, frameTimer: 0,
+        zone: z,
+        ...getEnemyDefaults(type),
+      })
+    }
+
+    // ── Spawn point ──
+    spawnPoints.push({ x: spawnX, y: spawnY })
+  }
+
+  // ── Fill divider columns with SOLID walls ──
+  for (let z = 1; z < playerCount; z++) {
+    const divCol = z * zoneW + (z - 1)
+    for (let y = 0; y < totalRows; y++) {
+      grid[y][divCol] = TILE.SOLID
+    }
+  }
+
+  // ── Connect portals: zone i portal → zone (i+1) % N ──
+  for (let i = 0; i < portals.length; i++) {
+    const target = portals[(i + 1) % portals.length]
+    portals[i].targetX = target.x
+    portals[i].targetY = target.y
+    portals[i].targetZone = target.zone
+  }
+
+  return {
+    grid,
+    enemies: allEnemies,
+    spawnPoints,
+    portals,
+    hiddenGateTiles,
+    zoneWidth: zoneW,
+    dividerWidth: dividerW,
+  }
+}
+
 // ─── MULTIPLAYER MAPS (15×13) ─────────────────────────────────────────────────
 export function generateMultiplayerMap(mapId, playerCount) {
   switch (mapId) {

@@ -170,6 +170,7 @@ export default class GameScene extends Phaser.Scene {
         if (tile === 1) wall = this.add.image(x, y, 'wall_solid').setDepth(1)
         else if (tile === 2) wall = this.add.image(x, y, 'wall_soft').setDepth(1)
         else if (tile === 3) wall = this.add.image(x, y, 'gate_exit').setDepth(1)
+        else if (tile === 4) wall = this.add.image(x, y, 'portal_open').setDepth(1)
 
         this.tileData[row][col] = { floor, wall, type: tile }
       }
@@ -190,7 +191,7 @@ export default class GameScene extends Phaser.Scene {
     cam.setBounds(0, 0, mapW, mapH)
 
     // Zoom to always show ALL rows, scroll horizontally
-    if (this.mode === 'singleplayer') {
+    if (this.mode === 'singleplayer' || this.mode === 'multiplayer') {
       // Fit full height so all rows are visible, camera scrolls horizontally
       const zoom = cam.height / mapH
       cam.setZoom(zoom)
@@ -235,6 +236,7 @@ export default class GameScene extends Phaser.Scene {
         if (tile === 1) entry.wall = this.add.image(x, y, 'wall_solid').setDepth(1)
         else if (tile === 2) entry.wall = this.add.image(x, y, 'wall_soft').setDepth(1)
         else if (tile === 3) entry.wall = this.add.image(x, y, 'gate_exit').setDepth(1)
+        else if (tile === 4) entry.wall = this.add.image(x, y, 'portal_open').setDepth(1)
         entry.type = tile
       }
     }

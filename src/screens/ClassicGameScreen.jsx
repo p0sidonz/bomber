@@ -233,8 +233,14 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
     if (player) {
       player.score = (player.score || 0) + 1000 // level clear bonus
 
-      // Save campaign progress to Supabase (Snapshot Memory)
       const currentLevel = levelRef.current
+      
+      // Reward +1 life every 3rd level, max 6
+      if (currentLevel % 3 === 0) {
+        player.lives = Math.min(6, (player.lives || 3) + 1)
+      }
+
+      // Save campaign progress to Supabase (Snapshot Memory)
       const nextLevel = currentLevel + 1
       const campaign = user?.user_metadata?.campaign || {}
       

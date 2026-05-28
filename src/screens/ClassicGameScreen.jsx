@@ -7,6 +7,7 @@ import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM, setBGMFast } from '../game/audio/audio.js'
 import { insertHighScore, saveCampaignProgress } from '../supabase.js'
+import { showInterstitialAd } from '../admob.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
@@ -186,6 +187,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
         state.status = 'game_over'
         stopBGM()
         setOverlay('game_over')
+        showInterstitialAd() // AdMob Trigger: Game over/lost
       }
       return
     }
@@ -228,6 +230,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
     stopBGM()
     setOverlay('level_clear')
     stateRef.current.status = 'cleared'
+    showInterstitialAd() // AdMob Trigger: Level cleared
 
     const player = stateRef.current ? Object.values(stateRef.current.players)[0] : null
     if (player) {

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { signOut, createRoom, joinRoomByCode } from '../supabase'
+import { showInterstitialAd } from '../admob'
 
 const MENU_ITEMS = [
   { id: 'classic', label: '▶ PLAY CLASSIC', desc: '50 LEVELS · SOLO' },
@@ -24,6 +25,16 @@ export default function LandingScreen({ user, nav }) {
     red: '#e03040', blue: '#3060e0', green: '#30c060',
     yellow: '#f0c040', purple: '#9040c0', orange: '#e08030',
   }
+
+  useEffect(() => {
+    // Show an ad when the app lands on the main menu, max once per hour
+    const lastAdTime = localStorage.getItem('last_app_open_ad_time')
+    const now = Date.now()
+    if (!lastAdTime || now - parseInt(lastAdTime) > 60 * 60 * 1000) {
+      showInterstitialAd()
+      localStorage.setItem('last_app_open_ad_time', now.toString())
+    }
+  }, [])
 
   useEffect(() => {
     function onKey(e) {
@@ -90,9 +101,9 @@ export default function LandingScreen({ user, nav }) {
   }
 
   return (
-    <div className="full-screen relative overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-bm-dark relative overflow-y-auto flex flex-col items-center justify-center py-8">
       {/* Animated background grid */}
-      <div className="absolute inset-0 opacity-[0.04]" style={{
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(0deg, #f0c040 0, #f0c040 1px, transparent 1px, transparent 48px), repeating-linear-gradient(90deg, #f0c040 0, #f0c040 1px, transparent 1px, transparent 48px)',
         backgroundSize: '48px 48px',
       }} />
@@ -184,6 +195,17 @@ export default function LandingScreen({ user, nav }) {
         {error && !showJoin && <p className="text-[8px] text-bm-red">⚠ {error}</p>}
 
         <p className="text-[7px] text-gray-700">↑↓ NAVIGATE · ENTER SELECT</p>
+      </div>
+
+      {/* Legal Footer */}
+      <div className="relative z-20 w-full flex flex-wrap justify-center items-center gap-x-4 gap-y-2 px-4 text-[8px] sm:text-[10px] text-gray-500 font-['Inter',sans-serif] mt-12 pb-4">
+        <a href="#privacy" className="hover:text-bm-accent transition-colors">Privacy Policy</a>
+        <span className="hidden sm:inline">|</span>
+        <a href="#tos" className="hover:text-bm-accent transition-colors">Terms of Service</a>
+        <span className="hidden sm:inline">|</span>
+        <a href="#contact" className="hover:text-bm-accent transition-colors">Contact</a>
+        <span className="hidden sm:inline">|</span>
+        <a href="#delete-account" className="hover:text-bm-red transition-colors">Delete Account</a>
       </div>
     </div>
   )

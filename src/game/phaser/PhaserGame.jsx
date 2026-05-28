@@ -4,6 +4,8 @@
 // ============================================================
 import { useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
+import { Capacitor } from '@capacitor/core'
+import { ScreenOrientation } from '@capacitor/screen-orientation'
 import GameScene from './GameScene.js'
 import { toggleFullscreen } from '../audio/audio.js'
 
@@ -19,6 +21,16 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
     return () => {
       document.removeEventListener('fullscreenchange', onChange)
       document.removeEventListener('webkitfullscreenchange', onChange)
+    }
+  }, [])
+
+  // Lock to landscape orientation on native mobile when playing
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      ScreenOrientation.lock({ orientation: 'landscape' }).catch(e => console.error('Failed to lock orientation', e))
+      return () => {
+        ScreenOrientation.unlock().catch(e => console.error('Failed to unlock orientation', e))
+      }
     }
   }, [])
 
@@ -178,45 +190,47 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       )}
 
       {/* ─── FULLSCREEN BUTTON ─── */}
-      <div
-        onClick={toggleFullscreen}
-        style={{
-          position: 'absolute',
-          top: isMobile ? '34px' : '42px',
-          right: '8px',
-          width: '28px',
-          height: '28px',
-          background: 'rgba(0,0,0,0.5)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 15,
-          pointerEvents: 'auto',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round">
-          {isFullscreen ? (
-            // Exit fullscreen icon
-            <>
-              <polyline points="4 14 4 20 10 20" />
-              <polyline points="20 10 20 4 14 4" />
-              <line x1="14" y1="10" x2="20" y2="4" />
-              <line x1="4" y1="20" x2="10" y2="14" />
-            </>
-          ) : (
-            // Enter fullscreen icon
-            <>
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </>
-          )}
-        </svg>
-      </div>
+      {!Capacitor.isNativePlatform() && (
+        <div
+          onClick={toggleFullscreen}
+          style={{
+            position: 'absolute',
+            top: isMobile ? '34px' : '42px',
+            right: '8px',
+            width: '28px',
+            height: '28px',
+            background: 'rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 15,
+            pointerEvents: 'auto',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round">
+            {isFullscreen ? (
+              // Exit fullscreen icon
+              <>
+                <polyline points="4 14 4 20 10 20" />
+                <polyline points="20 10 20 4 14 4" />
+                <line x1="14" y1="10" x2="20" y2="4" />
+                <line x1="4" y1="20" x2="10" y2="14" />
+              </>
+            ) : (
+              // Enter fullscreen icon
+              <>
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </>
+            )}
+          </svg>
+        </div>
+      )}
     </div>
   )
 }

@@ -63,7 +63,7 @@ export default function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div className="full-screen bg-bm-dark relative overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-bm-dark relative overflow-y-auto flex flex-col items-center justify-center py-8">
       {/* Background bombs */}
       <div className="absolute inset-0 opacity-5 pointer-events-none select-none text-[120px] flex flex-wrap gap-8 p-8">
         {Array.from({ length: 20 }).map((_, i) => <span key={i}>💣</span>)}
@@ -204,6 +204,18 @@ export default function AuthScreen({ onAuth }) {
             )}
           </form>
         </div>
+
+        {/* Legal Footer */}
+        <div className="relative z-20 w-full flex flex-wrap justify-center items-center gap-x-4 gap-y-2 px-4 text-[8px] sm:text-[10px] text-gray-500 font-['Inter',sans-serif] mt-12 pb-4">
+          <a href="#privacy" className="hover:text-bm-accent transition-colors">Privacy Policy</a>
+          <span className="hidden sm:inline">|</span>
+          <a href="#tos" className="hover:text-bm-accent transition-colors">Terms of Service</a>
+          <span className="hidden sm:inline">|</span>
+          <a href="#contact" className="hover:text-bm-accent transition-colors">Contact</a>
+          <span className="hidden sm:inline">|</span>
+          <a href="#delete-account" className="hover:text-bm-red transition-colors">Delete Account</a>
+        </div>
+
       </div>
     </div>
   )

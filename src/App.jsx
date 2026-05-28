@@ -10,8 +10,13 @@ import LeaderboardScreen from './screens/LeaderboardScreen'
 import ClassicGameScreen from './screens/ClassicGameScreen'
 import ResetPasswordScreen from './screens/ResetPasswordScreen'
 import LevelSelectScreen from './screens/LevelSelectScreen'
+import PrivacyScreen from './screens/PrivacyScreen'
+import TosScreen from './screens/TosScreen'
+import ContactScreen from './screens/ContactScreen'
+import DeleteAccountScreen from './screens/DeleteAccountScreen'
+import { initializeAdMob } from './admob'
 
-// SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password
+// SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password | privacy | tos | contact | delete_account
 export default function App() {
   const [screen, setScreen] = useState('auth')
   const [user, setUser] = useState(null)
@@ -20,11 +25,27 @@ export default function App() {
   const [level, setLevel] = useState(1)
 
   useEffect(() => {
+    initializeAdMob()
+  }, [])
+
+  useEffect(() => {
+    const handleHash = () => {
+      const h = window.location.hash
+      if (h === '#privacy') setScreen('privacy')
+      else if (h === '#tos') setScreen('tos')
+      else if (h === '#contact') setScreen('contact')
+      else if (h === '#delete-account') setScreen('delete_account')
+    }
+    
+    // Check initial hash
+    if (window.location.hash) handleHash()
+    window.addEventListener('hashchange', handleHash)
+
     // Restore session on mount
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         setUser(data.session.user)
-        setScreen('landing')
+        setScreen(curr => (!['privacy', 'tos', 'contact', 'delete_account'].includes(curr) && !window.location.hash) ? 'landing' : curr)
       }
     })
 
@@ -36,13 +57,16 @@ export default function App() {
 
       if (session) {
         setUser(session.user)
-        if (screen === 'auth') setScreen('landing')
+        setScreen(curr => (curr === 'auth' && !window.location.hash) ? 'landing' : curr)
       } else {
         setUser(null)
-        setScreen('auth')
+        setScreen(curr => !['privacy', 'tos', 'contact', 'delete_account'].includes(curr) ? 'auth' : curr)
       }
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('hashchange', handleHash)
+    }
   }, [])
 
   const nav = (s, extra = {}) => {
@@ -62,6 +86,10 @@ export default function App() {
   if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />
   if (screen === 'results') return <ResultsScreen user={user} room={room} result={gameResult} nav={nav} />
   if (screen === 'leaderboard') return <LeaderboardScreen user={user} nav={nav} />
+  if (screen === 'privacy') return <PrivacyScreen nav={nav} />
+  if (screen === 'tos') return <TosScreen nav={nav} />
+  if (screen === 'contact') return <ContactScreen nav={nav} />
+  if (screen === 'delete_account') return <DeleteAccountScreen user={user} nav={nav} />
 
   return null
 }

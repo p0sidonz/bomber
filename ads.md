@@ -1,0 +1,11 @@
+# App opens
+
+ca-app-pub-5973465758706809~7520210019
+
+# Level cleared
+
+ca-app-pub-5973465758706809~7520210019
+
+# Game over/lost
+
+ca-app-pub-5973465758706809~7520210019

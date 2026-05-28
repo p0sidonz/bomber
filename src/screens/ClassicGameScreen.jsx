@@ -98,9 +98,16 @@ export default function ClassicGameScreen({ user, nav }) {
     // Bomb press
     const currentBomb = keys.bomb
     if (currentBomb && !bombPressedRef.current) {
-      if (player.powerups?.includes('remote') && state.bombs.some(b => b.ownerId === player.userId && b.remote)) {
+      const hasRemote = player.powerups?.includes('remote')
+      const myRemoteBombs = hasRemote ? state.bombs.filter(b => b.ownerId === player.userId && b.remote) : []
+      const atMaxBombs = player.activeBombs >= player.maxBombs
+
+      if (hasRemote && myRemoteBombs.length > 0 && atMaxBombs) {
+        // All bombs placed — detonate them
         remoteDetonate(state, player.userId)
+        sfx.explosion()
       } else {
+        // Plant a new bomb
         plantBomb(state, player.userId)
         sfx.bombPlant()
       }

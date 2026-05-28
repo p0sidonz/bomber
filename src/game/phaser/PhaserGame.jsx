@@ -19,9 +19,9 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       width: 1280,
       height: 720,
       backgroundColor: '#0a0a14',
-      pixelArt: true,
-      antialias: false,
-      roundPixels: true,
+      pixelArt: false,
+      antialias: true,
+      roundPixels: false,
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,

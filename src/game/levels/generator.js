@@ -20,20 +20,13 @@ export const LEVEL_CONFIGS = Array.from({ length: 50 }, (_, i) => {
   // Progressive wall density: 25% at level 1 → 60% at level 50
   const softDensity = Math.round((0.25 + (level - 1) * 0.0071) * 100) / 100
 
-  if (level <= 10) {
-    enemies = pickEnemies(['Ballom', 'Oneal', 'Dahl'], enemyCount)
-  } else if (level <= 20) {
-    enemies = pickEnemies(['Oneal', 'Dahl', 'Minvo', 'Doria', 'Ovapi'], enemyCount)
-  } else if (level <= 30) {
-    enemies = pickEnemies(['Minvo', 'Pass', 'Pontan', 'Hurry', 'Nail'], enemyCount)
-  } else if (level <= 40) {
-    enemies = pickEnemies(['Rocky', 'Smoky', 'Ghost', 'Blaze', 'Dahl'], enemyCount)
-  } else {
-    enemies = pickEnemies([
-      'Ballom','Oneal','Dahl','Minvo','Doria','Ovapi','Pass','Pontan',
-      'Nail','Zael','Coin','Hurry','Rocky','Smoky','Ghost','Blaze','Titan','Mimic','Skuller'
-    ], enemyCount)
-  }
+  const enemyProgression = [
+    'Ballom', 'Oneal', 'Dahl', 'Minvo', 'Doria', 'Ovapi', 'Pass', 'Nail',
+    'Zael', 'Coin', 'Hurry', 'Rocky', 'Smoky', 'Pontan', 'Skuller', 'Ghost', 'Blaze', 'Titan', 'Mimic'
+  ]
+  const typesAvailable = Math.min(enemyProgression.length, level)
+  const pool = enemyProgression.slice(0, typesAvailable)
+  enemies = pickEnemies(pool, enemyCount)
 
   // Every 10th level: replace last enemy with BossBomb (stays within count)
   if (level % 10 === 0) enemies[enemies.length - 1] = { type: 'BossBomb', hp: 5 }
@@ -106,6 +99,26 @@ export function generateLevel(level) {
   // Hide exit gate under a random soft block
   const hiddenGateTile = softTiles[Math.floor(Math.random() * softTiles.length)] || [mapCols - 2, mapRows - 2]
 
+  // Deterministic Powerup Sequence
+  const sequence = [
+    'extrabomb', // 1
+    'fireup',    // 2
+    'speedup',   // 3
+    'remote',    // 4
+    'bombpass',  // 5
+    'fullfire',  // 6
+    'kick',      // 7
+    'extrabomb', // 8
+    'fireup',    // 9
+    'wallpass',  // 10
+  ]
+  const defaultPool = ['extrabomb', 'fireup', 'speedup', 'remote', 'bombpass', 'wallpass', 'fullfire', 'kick']
+  const powerupType = sequence[level - 1] || defaultPool[(level - 1) % defaultPool.length]
+
+  // Hide powerup under a DIFFERENT random soft block
+  const pwCandidates = softTiles.filter(t => t[0] !== hiddenGateTile[0] || t[1] !== hiddenGateTile[1])
+  const hiddenPowerupTile = pwCandidates[Math.floor(Math.random() * pwCandidates.length)] || [mapCols - 3, mapRows - 2]
+
   // Place enemies (far from player spawn)
   const enemySpawns = getEnemySpawnPoints(grid)
   const spawnedEnemies = []
@@ -133,6 +146,8 @@ export function generateLevel(level) {
   return {
     grid,
     hiddenGateTile,
+    hiddenPowerupTile,
+    powerupType,
     enemies: spawnedEnemies,
     playerSpawn: { x: 1, y: 1 },
     config,
@@ -163,10 +178,10 @@ function getEnemyDefaults(type) {
     Oneal:    { speed: 2, ai: 'chase_loose', points: 200, passWalls: false, passAll: false },
     Dahl:     { speed: 2, ai: 'turn_toward', points: 400, passWalls: false, passAll: false },
     Minvo:    { speed: 3, ai: 'astar', points: 800, passWalls: false, passAll: false },
-    Doria:    { speed: 2, ai: 'random', points: 1000, passWalls: true, passAll: false },
-    Ovapi:    { speed: 1, ai: 'random', points: 2000, passWalls: true, passAll: false },
+    Doria:    { speed: 2, ai: 'random', points: 1000, passWalls: false, passAll: false },
+    Ovapi:    { speed: 1, ai: 'random', points: 2000, passWalls: false, passAll: false },
     Pass:     { speed: 4, ai: 'random', points: 4000, passWalls: false, passAll: false },
-    Pontan:   { speed: 3, ai: 'random', points: 8000, passWalls: false, passAll: true },
+    Pontan:   { speed: 3, ai: 'random', points: 8000, passWalls: true, passAll: true },
     Nail:     { speed: 2, ai: 'wall_follower', points: 1600, passWalls: false, passAll: false },
     Zael:     { speed: 2, ai: 'wall_hugger', points: 3200, passWalls: false, passAll: false },
     Coin:     { speed: 1, ai: 'random', points: 6400, passWalls: false, passAll: false, dropsPowerup: true },

@@ -32,7 +32,7 @@ export default function ClassicGameScreen({ user, nav }) {
   const displayName = user?.user_metadata?.display_name || 'PLAYER'
 
   function loadLevel(level) {
-    const { grid, hiddenGateTile, enemies, playerSpawn, config } = generateLevel(level)
+    const { grid, hiddenGateTile, hiddenPowerupTile, powerupType, enemies, playerSpawn, config } = generateLevel(level)
     const playerConfig = [{
       userId: user.id,
       name: displayName,
@@ -45,6 +45,8 @@ export default function ClassicGameScreen({ user, nav }) {
     s.level = level
     s.timer = config.timer * 20 // convert to ticks
     s.hiddenGateTile = hiddenGateTile
+    s.hiddenPowerupTile = hiddenPowerupTile
+    s.powerupType = powerupType
     s.enemies = enemies
 
     // Restore score and lives from previous level
@@ -132,9 +134,10 @@ export default function ClassicGameScreen({ user, nav }) {
 
     // Respawn handling
     if (!player.alive) {
+      sfx.playerDeath()
       state.status = 'game_over'
-      setOverlay('game_over')
       stopBGM()
+      handleRestart()
       return
     }
 

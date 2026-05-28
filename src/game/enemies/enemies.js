@@ -141,8 +141,10 @@ function canEnemyMove(enemy, grid, nx, ny, enemies, bombs) {
   const tile = getTile(grid, nx, ny)
   if (tile === TILE.SOLID) return false
   if (tile === TILE.SOFT && !enemy.passWalls && !enemy.passAll) return false
-  // Enemies cannot walk through bombs
-  if (bombs && bombs.some(b => b.x === nx && b.y === ny)) return false
+  // Enemies cannot walk through bombs unless they have passAll
+  if (bombs && bombs.some(b => b.x === nx && b.y === ny)) {
+    if (!enemy.passAll) return false
+  }
   return true
 }
 
@@ -152,9 +154,9 @@ function chooseDir(enemy, state, target) {
     case 'random': return pickRandomDir(enemy, state.grid, state.enemies, bombs)
     case 'chase_loose': return chaseLoose(enemy, target)
     case 'turn_toward': return turnToward(enemy, target)
-    case 'astar': return astar(enemy, target, state.grid)
-    case 'wall_follower': return wallFollow(enemy, state.grid)
-    case 'wall_hugger': return wallHug(enemy, state.grid)
+    case 'astar': return astar(enemy, target, state.grid, state.enemies, bombs)
+    case 'wall_follower': return wallFollow(enemy, state.grid, state.enemies, bombs)
+    case 'wall_hugger': return wallHug(enemy, state.grid, state.enemies, bombs)
     case 'mimic': return mimicPlayer(enemy, state)
     case 'boss': return bossAI(enemy, state, target)
     case 'target_bombs': return chaseLoose(enemy, (state.bombs || [])[0] || target)
@@ -195,7 +197,7 @@ function turnToward(enemy, target) {
   return dy > 0 ? 'down' : 'up'
 }
 
-function astar(enemy, target, grid) {
+function astar(enemy, target, grid, enemies, bombs) {
   if (!target) return null
   // Simple greedy best-first (approximation of A*)
   const dx = target.x - enemy.x
@@ -208,12 +210,12 @@ function astar(enemy, target, grid) {
   const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }
   for (const d of candidates) {
     const [ddx, ddy] = dirs[d]
-    if (canEnemyMove(enemy, grid, enemy.x + ddx, enemy.y + ddy, [])) return d
+    if (canEnemyMove(enemy, grid, enemy.x + ddx, enemy.y + ddy, enemies, bombs)) return d
   }
   return null
 }
 
-function wallFollow(enemy, grid) {
+function wallFollow(enemy, grid, enemies, bombs) {
   // Wall follower: keep wall on left
   const order = {
     right: ['down','right','up','left'],
@@ -227,17 +229,17 @@ function wallFollow(enemy, grid) {
   if (Math.random() < 0.05) return seq[seq.length - 1]
   for (const d of seq) {
     const [dx, dy] = dirs[d]
-    if (canEnemyMove(enemy, grid, enemy.x + dx, enemy.y + dy, [])) return d
+    if (canEnemyMove(enemy, grid, enemy.x + dx, enemy.y + dy, enemies, bombs)) return d
   }
   return null
 }
 
-function wallHug(enemy, grid) {
+function wallHug(enemy, grid, enemies, bombs) {
   // Stay close to walls
   const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }
   const candidates = ALL_DIRS.filter(d => {
     const [dx, dy] = dirs[d]
-    return canEnemyMove(enemy, grid, enemy.x + dx, enemy.y + dy, [])
+    return canEnemyMove(enemy, grid, enemy.x + dx, enemy.y + dy, enemies, bombs)
   })
   // Prefer dirs adjacent to walls
   const withWalls = candidates.filter(d => {

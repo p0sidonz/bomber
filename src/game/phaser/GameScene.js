@@ -1,31 +1,11 @@
 // ============================================================
-// Phaser 3 GameScene — Replaces Canvas 2D renderer
+// Phaser 3 GameScene — Premium 3D-style renderer
 // WebGL-accelerated, camera-follow, smooth interpolation
 // ============================================================
 import Phaser from 'phaser'
 
 const TS = 48 // tile size (matches physics space)
-
-// ─── NES BOMBERMAN PALETTE (hex numbers for Phaser) ──────────────────────────
-const C = {
-  FLOOR_A:    0x48a800,
-  FLOOR_B:    0x3c9400,
-  STONE_BASE: 0xc0c0c0,
-  STONE_HI:   0xececec,
-  STONE_SH:   0x848484,
-  STONE_MT:   0xa8a8a8,
-  BRICK_BASE: 0xa09080,
-  BRICK_HI:   0xc4b4a4,
-  BRICK_SH:   0x5c4c3c,
-  BRICK_MT:   0x6e5e4e,
-  EXPL_CORE:  0xcc5500,
-  EXPL_BAR:   0xff9900,
-  EXPL_LINE:  0xffffff,
-  BOMB_BODY:  0x111111,
-  BOMB_SHINE: 0x555555,
-  BOMB_FUSE:  0x8a5a1a,
-  BOMB_SPARK: 0xffff00,
-}
+const H = TS / 2
 
 const PLAYER_HEX = {
   red: 0xe03040, blue: 0x3060e0, green: 0x30c060,
@@ -57,6 +37,22 @@ const PW_ICONS = {
   mystery: '?', gatebomb: 'G', shield: '[', decoy: 'D', blockitem: '#', swap: '@',
 }
 
+// Helper: darken a hex color by factor (0-1)
+function darken(hex, factor) {
+  const r = ((hex >> 16) & 0xff) * (1 - factor)
+  const g = ((hex >> 8) & 0xff) * (1 - factor)
+  const b = (hex & 0xff) * (1 - factor)
+  return (Math.floor(r) << 16) | (Math.floor(g) << 8) | Math.floor(b)
+}
+
+// Helper: lighten a hex color by factor (0-1)
+function lighten(hex, factor) {
+  const r = Math.min(255, ((hex >> 16) & 0xff) + 255 * factor)
+  const g = Math.min(255, ((hex >> 8) & 0xff) + 255 * factor)
+  const b = Math.min(255, (hex & 0xff) + 255 * factor)
+  return (Math.floor(r) << 16) | (Math.floor(g) << 8) | Math.floor(b)
+}
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' })
@@ -72,72 +68,131 @@ export default class GameScene extends Phaser.Scene {
     this.genTextures()
 
     // Sprite tracking
-    this.tileData = []       // [row][col] = { floor, wall, type }
-    this.playerGfx = {}      // userId → { gfx, nameText }
-    this.enemyGfx = {}       // enemyId → { gfx }
-    this.bombGfx = {}        // bombId → { gfx }
-    this.explGfx = []        // [{ gfx, id }]
-    this.pwSprites = {}      // "x,y" → sprite
+    this.tileData = []
+    this.playerGfx = {}
+    this.enemyGfx = {}
+    this.bombGfx = {}
+    this.explGfx = []
+    this.pwSprites = {}
     this.labelTexts = []
-    this.gateGfx = {}        // "x,y" → sprite
+    this.gateGfx = {}
 
-    // Build initial map
     this.buildGrid()
 
-    // Camera target (invisible object the camera follows)
     this.camTarget = this.add.rectangle(0, 0, 1, 1, 0x000000, 0)
     this.camTarget.setDepth(-1)
 
     this.setupCamera()
   }
 
-  // ─── TEXTURE GENERATION ─────────────────────────────────────────────────
+  // ─── TEXTURE GENERATION (3D-style tiles) ─────────────────────────────
   genTextures() {
+    // ── FLOOR ──
     this._tex('floor_a', (g) => {
-      g.fillStyle(C.FLOOR_A); g.fillRect(0, 0, TS, TS)
+      // Base green
+      g.fillStyle(0x5ab832); g.fillRect(0, 0, TS, TS)
+      // Subtle checker pattern for depth
+      g.fillStyle(0x4da828, 0.5); g.fillRect(0, 0, H, H); g.fillRect(H, H, H, H)
+      // Very subtle noise dots for texture
+      g.fillStyle(0x66cc38, 0.3)
+      for (let i = 0; i < 6; i++) {
+        const dx = 4 + (i * 7) % (TS - 8)
+        const dy = 3 + (i * 11) % (TS - 6)
+        g.fillRect(dx, dy, 2, 2)
+      }
     })
-    this._tex('floor_b', (g) => {
-      g.fillStyle(C.FLOOR_A); g.fillRect(0, 0, TS, TS)
-    })
+
+    // ── SOLID WALL (3D stone block) ──
     this._tex('wall_solid', (g) => {
-      g.fillStyle(C.STONE_BASE); g.fillRect(0, 0, TS, TS)
-      g.fillStyle(C.STONE_HI); g.fillRect(0, 0, TS, 3); g.fillRect(0, 0, 3, TS)
-      g.fillStyle(C.STONE_SH); g.fillRect(0, TS - 3, TS, 3); g.fillRect(TS - 3, 0, 3, TS)
+      const base = 0x808890
+      // Main face
+      g.fillStyle(base); g.fillRect(0, 0, TS, TS)
+      // Top edge highlight (bright)
+      g.fillStyle(lighten(base, 0.35)); g.fillRect(0, 0, TS, 4)
+      // Left edge highlight
+      g.fillStyle(lighten(base, 0.25)); g.fillRect(0, 0, 4, TS)
+      // Bottom shadow
+      g.fillStyle(darken(base, 0.4)); g.fillRect(0, TS - 5, TS, 5)
+      // Right shadow
+      g.fillStyle(darken(base, 0.3)); g.fillRect(TS - 5, 0, 5, TS)
+      // Inner bevel
+      g.fillStyle(lighten(base, 0.12)); g.fillRect(5, 5, TS - 10, TS - 10)
+      // Center cross detail
+      g.fillStyle(darken(base, 0.15))
+      g.fillRect(H - 1, 8, 2, TS - 16)
+      g.fillRect(8, H - 1, TS - 16, 2)
+      // Corner rivets
+      g.fillStyle(darken(base, 0.5))
+      g.fillCircle(8, 8, 3); g.fillCircle(TS - 8, 8, 3)
+      g.fillCircle(8, TS - 8, 3); g.fillCircle(TS - 8, TS - 8, 3)
+      g.fillStyle(lighten(base, 0.4))
+      g.fillCircle(7, 7, 1.5); g.fillCircle(TS - 9, 7, 1.5)
     })
+
+    // ── SOFT WALL (3D brick) ──
     this._tex('wall_soft', (g) => {
-      const mid = Math.floor(TS / 2)
-      g.fillStyle(C.BRICK_BASE); g.fillRect(0, 0, TS, TS)
-      g.fillStyle(C.BRICK_HI); g.fillRect(0, 0, TS, 3); g.fillRect(0, 0, 3, TS)
-      g.fillStyle(C.BRICK_SH); g.fillRect(0, TS - 3, TS, 3); g.fillRect(TS - 3, 0, 3, TS)
-      g.fillStyle(C.BRICK_MT)
-      g.fillRect(3, mid - 1, TS - 6, 2)
-      g.fillRect(Math.floor(TS / 4) - 1, 3, 2, mid - 4)
-      g.fillRect(Math.floor(3 * TS / 4) - 1, 3, 2, mid - 4)
-      g.fillRect(mid - 1, mid + 1, 2, mid - 4)
+      const base = 0xc08050
+      g.fillStyle(base); g.fillRect(0, 0, TS, TS)
+      // Top highlight
+      g.fillStyle(lighten(base, 0.3)); g.fillRect(0, 0, TS, 3)
+      // Left highlight
+      g.fillStyle(lighten(base, 0.2)); g.fillRect(0, 0, 3, TS)
+      // Bottom shadow
+      g.fillStyle(darken(base, 0.35)); g.fillRect(0, TS - 4, TS, 4)
+      // Right shadow
+      g.fillStyle(darken(base, 0.25)); g.fillRect(TS - 4, 0, 4, TS)
+      // Brick lines (mortar)
+      g.fillStyle(darken(base, 0.3))
+      g.fillRect(3, H - 1, TS - 6, 2)
+      g.fillRect(H / 2, 3, 2, H - 4)
+      g.fillRect(H + H / 2, 3, 2, H - 4)
+      g.fillRect(H - 1, H + 1, 2, H - 5)
+      // Brick face highlights
+      g.fillStyle(lighten(base, 0.15))
+      g.fillRect(5, 5, H / 2 - 4, H - 8)
+      g.fillRect(H / 2 + 4, 5, H - 4, H - 8)
     })
+
+    // ── EXIT GATE (glowing portal) ──
     this._tex('gate_exit', (g) => {
-      const cx = Math.floor(TS / 2), cy = Math.floor(TS / 2)
-      g.fillStyle(0x111122); g.fillRect(0, 0, TS, TS)
-      g.fillStyle(0xffffa0); g.fillRect(3, 3, TS - 6, TS - 6)
-      g.fillStyle(0xffff60); g.fillRect(6, 6, TS - 12, TS - 12)
-      g.fillStyle(0xffffff); g.fillRect(9, 9, TS - 18, TS - 18)
-      g.fillStyle(0xffffc0); g.fillRect(cx - 1, cy - 6, 2, 12); g.fillRect(cx - 6, cy - 1, 12, 2)
+      // Dark pit
+      g.fillStyle(0x0a0a1a); g.fillRect(0, 0, TS, TS)
+      // Outer glow ring
+      g.fillStyle(0x40ff80, 0.3); g.fillCircle(H, H, 22)
+      g.fillStyle(0x30dd60, 0.5); g.fillCircle(H, H, 18)
+      // Inner bright core
+      g.fillStyle(0x80ffaa, 0.7); g.fillCircle(H, H, 13)
+      g.fillStyle(0xeeffee, 0.8); g.fillCircle(H, H, 8)
+      // Arrow/star indicator
+      g.fillStyle(0xffffff)
+      g.fillRect(H - 1, H - 8, 2, 16)
+      g.fillRect(H - 8, H - 1, 16, 2)
+      // Corner frame
+      g.fillStyle(0x22cc55)
+      g.fillRect(0, 0, TS, 2); g.fillRect(0, TS - 2, TS, 2)
+      g.fillRect(0, 0, 2, TS); g.fillRect(TS - 2, 0, 2, TS)
     })
+
+    // ── PORTAL CLOSED ──
     this._tex('portal_closed', (g) => {
-      g.fillStyle(0x606000, 0.25); g.fillRect(0, 0, TS, TS)
+      g.fillStyle(0x1a1a0a); g.fillRect(0, 0, TS, TS)
+      g.fillStyle(0x806020, 0.4); g.fillCircle(H, H, 18)
+      g.fillStyle(0x604010, 0.5); g.fillCircle(H, H, 12)
+      // X mark
       g.fillStyle(0xf0c040)
       g.fillRect(0, 0, TS, 3); g.fillRect(0, TS - 3, TS, 3)
       g.fillRect(0, 0, 3, TS); g.fillRect(TS - 3, 0, 3, TS)
-      const mid = Math.floor(TS / 2)
-      g.fillRect(3, mid - 1, TS - 6, 2); g.fillRect(mid - 1, 3, 2, TS - 6)
     })
+
+    // ── PORTAL OPEN ──
     this._tex('portal_open', (g) => {
-      g.fillStyle(0x106010, 0.25); g.fillRect(0, 0, TS, TS)
+      g.fillStyle(0x0a1a0a); g.fillRect(0, 0, TS, TS)
+      g.fillStyle(0x20ff60, 0.3); g.fillCircle(H, H, 20)
+      g.fillStyle(0x40ff80, 0.5); g.fillCircle(H, H, 14)
+      g.fillStyle(0xeeffee, 0.6); g.fillCircle(H, H, 8)
       g.fillStyle(0x30ff60)
       g.fillRect(0, 0, TS, 3); g.fillRect(0, TS - 3, TS, 3)
       g.fillRect(0, 0, 3, TS); g.fillRect(TS - 3, 0, 3, TS)
-      const mid = Math.floor(TS / 2)
-      g.fillRect(3, mid - 1, TS - 6, 2); g.fillRect(mid - 1, 3, 2, TS - 6)
     })
   }
 
@@ -160,10 +215,9 @@ export default class GameScene extends Phaser.Scene {
     for (let row = 0; row < rows; row++) {
       this.tileData[row] = []
       for (let col = 0; col < cols; col++) {
-        const x = col * TS + TS / 2
-        const y = row * TS + TS / 2
-        const floorKey = 'floor_a'
-        const floor = this.add.image(x, y, floorKey).setDepth(0)
+        const x = col * TS + H
+        const y = row * TS + H
+        const floor = this.add.image(x, y, 'floor_a').setDepth(0)
 
         let wall = null
         const tile = grid[row][col]
@@ -190,9 +244,7 @@ export default class GameScene extends Phaser.Scene {
     const cam = this.cameras.main
     cam.setBounds(0, 0, mapW, mapH)
 
-    // Zoom to always show ALL rows, scroll horizontally
     if (this.mode === 'singleplayer' || this.mode === 'multiplayer') {
-      // Fit full height so all rows are visible, camera scrolls horizontally
       const zoom = cam.height / mapH
       cam.setZoom(zoom)
     } else {
@@ -211,7 +263,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.syncGrid(state)
     this.syncBombs(state, time)
-    this.syncExplosions(state)
+    this.syncExplosions(state, time)
     this.syncPowerups(state)
     this.syncGates(state)
     this.syncEnemies(state, delta)
@@ -220,7 +272,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateCamera(state)
   }
 
-  // ─── SYNC GRID (only update changed tiles) ─────────────────────────────
+  // ─── SYNC GRID ─────────────────────────────────────────────────────────
   syncGrid(state) {
     const { grid } = state
     for (let row = 0; row < grid.length; row++) {
@@ -229,10 +281,9 @@ export default class GameScene extends Phaser.Scene {
         const entry = this.tileData[row]?.[col]
         if (!entry || entry.type === tile) continue
 
-        // Tile changed
         if (entry.wall) { entry.wall.destroy(); entry.wall = null }
-        const x = col * TS + TS / 2
-        const y = row * TS + TS / 2
+        const x = col * TS + H
+        const y = row * TS + H
         if (tile === 1) entry.wall = this.add.image(x, y, 'wall_solid').setDepth(1)
         else if (tile === 2) entry.wall = this.add.image(x, y, 'wall_soft').setDepth(1)
         else if (tile === 3) entry.wall = this.add.image(x, y, 'gate_exit').setDepth(1)
@@ -242,7 +293,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── SYNC BOMBS ────────────────────────────────────────────────────────
+  // ─── SYNC BOMBS (3D sphere with fuse and spark) ────────────────────────
   syncBombs(state, time) {
     const activeBombIds = new Set()
     for (const bomb of state.bombs) {
@@ -253,43 +304,72 @@ export default class GameScene extends Phaser.Scene {
         entry = { gfx }
         this.bombGfx[bomb.id] = entry
       }
-      // Position
+
       const bx = bomb.px !== undefined ? bomb.px : bomb.x * TS
       const by = bomb.py !== undefined ? bomb.py : bomb.y * TS
-      entry.gfx.setPosition(bx + TS / 2, by + TS / 2)
+      entry.gfx.setPosition(bx + H, by + H)
 
-      // Draw with pulse
+      // Pulse animation
       const fuseRatio = (bomb.fuseTicks || 60) / 60
-      const beatPeriod = Math.max(100, 400 * fuseRatio) // ms
-      const pulse = Math.sin(time / beatPeriod * Math.PI * 2) * 0.08
+      const beatPeriod = Math.max(80, 350 * fuseRatio)
+      const pulse = Math.sin(time / beatPeriod * Math.PI * 2) * 0.1
       const scale = 1 + pulse
 
       entry.gfx.clear()
-      const r = Math.floor(TS * 0.34 * scale)
+      const r = Math.floor(15 * scale)
 
-      // Body (smooth circle)
-      entry.gfx.fillStyle(C.BOMB_BODY)
+      // Drop shadow
+      entry.gfx.fillStyle(0x000000, 0.3)
+      entry.gfx.fillEllipse(0, r + 2, r * 1.6, 6)
+
+      // Main bomb body (dark sphere)
+      entry.gfx.fillStyle(0x1a1a2e)
       entry.gfx.fillCircle(0, 0, r)
-      
-      // Shine (smooth small circle)
-      entry.gfx.fillStyle(C.BOMB_SHINE)
-      entry.gfx.fillCircle(-r * 0.3, -r * 0.3, r * 0.3)
-      
-      // Fuse
-      entry.gfx.fillStyle(C.BOMB_FUSE)
-      entry.gfx.fillRect(-2, -r - 10, 4, 10)
-      
-      // Spark
-      if (time % 200 < 100) {
-        entry.gfx.fillStyle(C.BOMB_SPARK1)
-        entry.gfx.fillCircle(0, -r - 12, 6)
-      } else {
-        entry.gfx.fillStyle(C.BOMB_SPARK2)
-        entry.gfx.fillCircle(0, -r - 12, 4)
-      }
+
+      // 3D shading — bottom half darker
+      entry.gfx.fillStyle(0x000000, 0.3)
+      entry.gfx.beginPath()
+      entry.gfx.arc(0, 0, r, 0, Math.PI)
+      entry.gfx.fillPath()
+
+      // 3D highlight — top-left specular
+      entry.gfx.fillStyle(0xffffff, 0.35)
+      entry.gfx.fillCircle(-r * 0.3, -r * 0.35, r * 0.35)
+      entry.gfx.fillStyle(0xffffff, 0.6)
+      entry.gfx.fillCircle(-r * 0.25, -r * 0.4, r * 0.15)
+
+      // Metal band around middle
+      entry.gfx.fillStyle(0x555566)
+      entry.gfx.fillRect(-r, -2, r * 2, 4)
+      entry.gfx.fillStyle(0x888899)
+      entry.gfx.fillRect(-r, -2, r * 2, 2)
+
+      // Fuse tube
+      entry.gfx.fillStyle(0x8a6a3a)
+      entry.gfx.fillRect(-2, -r - 8, 4, 10)
+      // Fuse rope texture
+      entry.gfx.fillStyle(0x6a4a2a)
+      entry.gfx.fillRect(-1, -r - 7, 2, 2)
+      entry.gfx.fillRect(-1, -r - 3, 2, 2)
+
+      // Spark glow (pulsing)
+      const sparkPhase = (time % 300) / 300
+      const sparkSize = 4 + Math.sin(sparkPhase * Math.PI * 2) * 3
+
+      // Outer glow
+      entry.gfx.fillStyle(0xff6600, 0.3)
+      entry.gfx.fillCircle(0, -r - 10, sparkSize + 6)
+      // Mid glow
+      entry.gfx.fillStyle(0xffaa00, 0.6)
+      entry.gfx.fillCircle(0, -r - 10, sparkSize + 2)
+      // Core spark
+      entry.gfx.fillStyle(0xffff88)
+      entry.gfx.fillCircle(0, -r - 10, sparkSize)
+      // White hot center
+      entry.gfx.fillStyle(0xffffff)
+      entry.gfx.fillCircle(0, -r - 10, sparkSize * 0.4)
     }
 
-    // Remove bombs that no longer exist
     for (const id of Object.keys(this.bombGfx)) {
       if (!activeBombIds.has(id)) {
         this.bombGfx[id].gfx.destroy()
@@ -298,69 +378,89 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── SYNC EXPLOSIONS (clean orange flame fill) ────────────────────────
-  syncExplosions(state) {
-    for (const entry of this.explGfx) entry.gfx.destroy()
+  // ─── SYNC EXPLOSIONS (smooth fiery blast) ──────────────────────────────
+  syncExplosions(state, time) {
+    for (const entry of this.explGfx) {
+      entry.gfx.destroy()
+      if (entry.glow) entry.glow.destroy()
+    }
     this.explGfx = []
 
     for (const exp of state.explosions) {
-      const fade = Math.min(1, (exp.frame || 0) / 10)
-      const alpha = Math.max(0.1, 1 - fade * 0.8)
-      const gfx = this.add.graphics().setDepth(4).setAlpha(alpha)
+      const progress = Math.min(1, (exp.frame || 0) / 12)
+      const alpha = Math.max(0, 1 - progress * progress) // ease-out fade
 
-      // Separate tiles into horizontal and vertical arms
+      // Main blast layer
+      const gfx = this.add.graphics().setDepth(4).setAlpha(alpha)
+      // Additive glow layer
+      const glow = this.add.graphics().setDepth(4.5).setAlpha(alpha * 0.6).setBlendMode(Phaser.BlendModes.ADD)
+
+      // Draw smooth fire on each explosion tile
+      for (const [col, row] of exp.tiles) {
+        const cx = col * TS + H
+        const cy = row * TS + H
+        const isCenter = col === exp.centerX && row === exp.centerY
+        const s = isCenter ? 1.25 : 1.0
+        const expansion = 1 + progress * 0.2 // slight expansion as it fades
+
+        // Outer red-orange fire
+        gfx.fillStyle(0xcc2200, 0.6)
+        gfx.fillCircle(cx, cy, 20 * s * expansion)
+
+        // Mid orange fire
+        gfx.fillStyle(0xff6600, 0.8)
+        gfx.fillCircle(cx, cy, 15 * s * expansion)
+
+        // Inner bright yellow
+        gfx.fillStyle(0xffaa22, 0.9)
+        gfx.fillCircle(cx, cy, 10 * s * expansion)
+
+        // White-hot core
+        gfx.fillStyle(0xffffcc)
+        gfx.fillCircle(cx, cy, 5 * s)
+
+        // Additive glow halo
+        glow.fillStyle(0xff4400, 0.4)
+        glow.fillCircle(cx, cy, 22 * s * expansion)
+        glow.fillStyle(0xffcc00, 0.3)
+        glow.fillCircle(cx, cy, 12 * s)
+      }
+
+      // Connect tiles with beams for the cross shape
       let minX = exp.centerX, maxX = exp.centerX
       let minY = exp.centerY, maxY = exp.centerY
-
       for (const [col, row] of exp.tiles) {
-        if (row === exp.centerY) {
-          if (col < minX) minX = col
-          if (col > maxX) maxX = col
-        }
-        if (col === exp.centerX) {
-          if (row < minY) minY = row
-          if (row > maxY) maxY = row
-        }
+        if (row === exp.centerY) { minX = Math.min(minX, col); maxX = Math.max(maxX, col) }
+        if (col === exp.centerX) { minY = Math.min(minY, row); maxY = Math.max(maxY, row) }
       }
 
-      const pad = 4
-      const drawBeam = (x1, y1, x2, y2) => {
-        const px = x1 * TS + pad
-        const py = y1 * TS + pad
-        const w = (x2 - x1 + 1) * TS - pad * 2
-        const h = (y2 - y1 + 1) * TS - pad * 2
-        
-        // Outer orange (flat rects merge perfectly into a + shape)
-        gfx.fillStyle(0xe85000)
-        gfx.fillRect(px, py, w, h)
-        // Inner yellow
-        gfx.fillStyle(0xff8800)
-        gfx.fillRect(px + 4, py + 4, Math.max(0, w - 8), Math.max(0, h - 8))
-        // Bright core line
-        gfx.fillStyle(0xffcc44)
-        gfx.fillRect(px + 10, py + 10, Math.max(0, w - 20), Math.max(0, h - 20))
+      // Horizontal beam connector
+      if (maxX > minX) {
+        const y = exp.centerY * TS + H
+        const x1 = minX * TS + H
+        const x2 = maxX * TS + H
+        gfx.fillStyle(0xff6600, 0.5)
+        gfx.fillRect(x1, y - 10, x2 - x1, 20)
+        gfx.fillStyle(0xffaa33, 0.7)
+        gfx.fillRect(x1, y - 6, x2 - x1, 12)
+        gfx.fillStyle(0xffffcc, 0.6)
+        gfx.fillRect(x1, y - 3, x2 - x1, 6)
       }
 
-      // Draw vertical beam
-      if (maxY >= minY) {
-        drawBeam(exp.centerX, minY, exp.centerX, maxY)
-      }
-      
-      // Draw horizontal beam
-      if (maxX >= minX) {
-        drawBeam(minX, exp.centerY, maxX, exp.centerY)
+      // Vertical beam connector
+      if (maxY > minY) {
+        const x = exp.centerX * TS + H
+        const y1 = minY * TS + H
+        const y2 = maxY * TS + H
+        gfx.fillStyle(0xff6600, 0.5)
+        gfx.fillRect(x - 10, y1, 20, y2 - y1)
+        gfx.fillStyle(0xffaa33, 0.7)
+        gfx.fillRect(x - 6, y1, 12, y2 - y1)
+        gfx.fillStyle(0xffffcc, 0.6)
+        gfx.fillRect(x - 3, y1, 6, y2 - y1)
       }
 
-      // Bright center blast core to cover the intersection and make it look like an eruption
-      const cx = exp.centerX * TS + TS / 2
-      const cy = exp.centerY * TS + TS / 2
-      
-      gfx.fillStyle(0xffffff)
-      gfx.fillCircle(cx, cy, TS * 0.4)
-      gfx.fillStyle(0xffffee)
-      gfx.fillCircle(cx, cy, TS * 0.25)
-
-      this.explGfx.push({ gfx, id: exp.id })
+      this.explGfx.push({ gfx, glow, id: exp.id })
     }
   }
 
@@ -371,25 +471,32 @@ export default class GameScene extends Phaser.Scene {
       const key = `${pw.x},${pw.y}`
       activePwKeys.add(key)
       if (!this.pwSprites[key]) {
-        const x = pw.x * TS + TS / 2
-        const y = pw.y * TS + TS / 2
+        const x = pw.x * TS + H
+        const y = pw.y * TS + H
         const gfx = this.add.graphics().setDepth(2).setPosition(x, y)
-        const sz = TS - 8
+        const sz = TS - 10
         const half = sz / 2
         const color = PW_HEX[pw.type] || 0xffffff
-        // Shadow base
-        gfx.fillStyle(0x000000, 0.4)
-        gfx.fillRoundedRect(-half + 2, -half + 2, sz, sz, 8)
-        // Main pill shape
-        gfx.fillStyle(color)
-        gfx.fillRoundedRect(-half, -half, sz, sz, 8)
-        // Inner detail ring
-        gfx.lineStyle(2, 0xffffff, 0.6)
-        gfx.strokeRoundedRect(-half + 4, -half + 4, sz - 8, sz - 8, 4)
 
-        const txt = this.add.text(x, y, PW_ICONS[pw.type] || '?', {
-          fontSize: `${Math.floor(sz * 0.5)}px`,
-          fontFamily: 'monospace',
+        // Shadow
+        gfx.fillStyle(0x000000, 0.3)
+        gfx.fillRoundedRect(-half + 2, -half + 3, sz, sz, 10)
+        // Background
+        gfx.fillStyle(darken(color, 0.3))
+        gfx.fillRoundedRect(-half, -half, sz, sz, 10)
+        // Main face
+        gfx.fillStyle(color)
+        gfx.fillRoundedRect(-half + 2, -half + 2, sz - 4, sz - 4, 8)
+        // Highlight
+        gfx.fillStyle(0xffffff, 0.4)
+        gfx.fillRoundedRect(-half + 4, -half + 4, sz - 8, 8, 4)
+        // Inner ring
+        gfx.lineStyle(1.5, 0xffffff, 0.5)
+        gfx.strokeRoundedRect(-half + 6, -half + 6, sz - 12, sz - 12, 6)
+
+        const txt = this.add.text(x, y + 1, PW_ICONS[pw.type] || '?', {
+          fontSize: `${Math.floor(sz * 0.45)}px`,
+          fontFamily: '"Press Start 2P", monospace',
           fontStyle: 'bold',
           color: '#111111',
         }).setOrigin(0.5).setDepth(2.5)
@@ -398,7 +505,6 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Remove picked-up powerups
     for (const key of Object.keys(this.pwSprites)) {
       if (!activePwKeys.has(key)) {
         this.pwSprites[key].gfx.destroy()
@@ -414,8 +520,8 @@ export default class GameScene extends Phaser.Scene {
     for (const gate of state.gates || []) {
       const key = `${gate.x},${gate.y}`
       activeGateKeys.add(key)
-      const x = gate.x * TS + TS / 2
-      const y = gate.y * TS + TS / 2
+      const x = gate.x * TS + H
+      const y = gate.y * TS + H
       const texKey = gate.open ? 'portal_open' : 'portal_closed'
 
       if (!this.gateGfx[key]) {
@@ -449,15 +555,13 @@ export default class GameScene extends Phaser.Scene {
         this.enemyGfx[enemy.id] = entry
       }
 
-      // Track enemy px/py directly (game logic now handles smooth movement)
-      const tx = enemy.px + TS / 2
-      const ty = enemy.py + TS / 2
+      const tx = enemy.px + H
+      const ty = enemy.py + H
       const lerpAmt = Math.min(1, delta * 0.04)
       const ex = entry.gfx.x + (tx - entry.gfx.x) * lerpAmt
       const ey = entry.gfx.y + (ty - entry.gfx.y) * lerpAmt
       entry.gfx.setPosition(ex, ey)
 
-      // Death animation
       if (!enemy.alive) {
         const df = enemy.deathFrame || 0
         const scale = Math.max(0, 1 - df / 14)
@@ -473,7 +577,6 @@ export default class GameScene extends Phaser.Scene {
       this._drawEnemy(entry.gfx, enemy)
     }
 
-    // Remove destroyed enemies
     for (const id of Object.keys(this.enemyGfx)) {
       if (!aliveIds.has(id)) {
         this.enemyGfx[id].gfx.destroy()
@@ -487,50 +590,122 @@ export default class GameScene extends Phaser.Scene {
     const color = ENEMY_HEX[enemy.type] || 0xe87060
     const bob = (enemy.frame || 0) === 0 ? 0 : 2
 
+    // Ground shadow
+    gfx.fillStyle(0x000000, 0.25)
+    gfx.fillEllipse(0, 18, 22, 7)
+
     if (enemy.type === 'BossBomb') {
-      // Large boss
-      gfx.fillStyle(color)
-      gfx.fillCircle(0, bob, 16)
-      gfx.fillRoundedRect(-12, -18 + bob, 24, 8, 4)
-      // Crown
-      gfx.fillStyle(0xf0c040)
-      for (let i = -1; i <= 1; i++) gfx.fillCircle(i * 8, -20 + bob, 4)
-      // Eyes
-      gfx.fillStyle(0xffffff)
-      gfx.fillCircle(-6, -2 + bob, 5); gfx.fillCircle(6, -2 + bob, 5)
-      gfx.fillStyle(0xff0000)
-      gfx.fillCircle(-6, -2 + bob, 2); gfx.fillCircle(6, -2 + bob, 2)
-      // HP bar
-      gfx.fillStyle(0x440000)
-      gfx.fillRoundedRect(-TS / 2 + 2, -TS / 2 - 4, TS - 4, 5, 2)
-      gfx.fillStyle(0xee0000)
-      gfx.fillRoundedRect(-TS / 2 + 2, -TS / 2 - 4, Math.floor((TS - 4) * (enemy.hp / 5)), 5, 2)
+      this._drawBoss(gfx, enemy, color, bob)
       return
     }
 
-    // Generic smooth round body
-    const r = enemy.type === 'Titan' ? 14 : 11
+    const r = enemy.type === 'Titan' ? 16 : 13
+
+    // ── 3D BODY ──
+    // Base body (slightly darker)
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillCircle(0, bob + 1, r)
+    // Main body
     gfx.fillStyle(color)
     gfx.fillCircle(0, bob, r)
+    // Bottom shadow (hemisphere)
+    gfx.fillStyle(darken(color, 0.35), 0.5)
+    gfx.beginPath()
+    gfx.arc(0, bob, r, 0.2, Math.PI - 0.2)
+    gfx.fillPath()
+    // Top specular highlight
+    gfx.fillStyle(lighten(color, 0.4), 0.5)
+    gfx.fillCircle(-r * 0.25, bob - r * 0.35, r * 0.4)
+    gfx.fillStyle(0xffffff, 0.4)
+    gfx.fillCircle(-r * 0.2, bob - r * 0.4, r * 0.2)
+    // Rim light
+    gfx.lineStyle(1, lighten(color, 0.3), 0.3)
+    gfx.beginPath()
+    gfx.arc(0, bob, r - 1, -Math.PI * 0.8, -Math.PI * 0.2)
+    gfx.strokePath()
+
+    // ── EYES (track direction) ──
+    let epx = 0, epy = -2
+    if (enemy.dir === 'left') epx = -2
+    else if (enemy.dir === 'right') epx = 2
+    else if (enemy.dir === 'up') epy = -4
+    else if (enemy.dir === 'down') epy = 0
+
+    // Eye whites (3D ovals)
+    gfx.fillStyle(0xfafafa)
+    gfx.fillEllipse(epx - 5, epy + bob, 5, 6)
+    gfx.fillEllipse(epx + 5, epy + bob, 5, 6)
+    // Eye shadow
+    gfx.fillStyle(0xdddddd, 0.5)
+    gfx.fillEllipse(epx - 5, epy + bob + 1, 5, 3)
+    gfx.fillEllipse(epx + 5, epy + bob + 1, 5, 3)
+    // Pupils
+    gfx.fillStyle(0x111122)
+    gfx.fillCircle(epx - 5 + (epx > 0 ? 1 : epx < 0 ? -1 : 0), epy + bob + 1, 2.5)
+    gfx.fillCircle(epx + 5 + (epx > 0 ? 1 : epx < 0 ? -1 : 0), epy + bob + 1, 2.5)
+    // Pupil highlights
+    gfx.fillStyle(0xffffff, 0.8)
+    gfx.fillCircle(epx - 6, epy + bob - 1, 1)
+    gfx.fillCircle(epx + 4, epy + bob - 1, 1)
+
+    // ── MOUTH ──
+    gfx.fillStyle(darken(color, 0.5))
+    gfx.fillRoundedRect(-4, bob + 5, 8, 3, 1.5)
+
+    // ── FEET (3D bumps) ──
+    gfx.fillStyle(darken(color, 0.4))
+    gfx.fillEllipse(-5, r + bob, 5, 4)
+    gfx.fillEllipse(5, r + bob, 5, 4)
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillEllipse(-5, r + bob - 1, 5, 3)
+    gfx.fillEllipse(5, r + bob - 1, 5, 3)
+
+    // HP bar
+    if (enemy.hp > 1 && enemy.type !== 'BossBomb') {
+      gfx.fillStyle(0x330000, 0.8)
+      gfx.fillRoundedRect(-H + 4, -H - 4, TS - 8, 5, 2)
+      gfx.fillStyle(0xee2222)
+      gfx.fillRoundedRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5, 2)
+    }
+  }
+
+  _drawBoss(gfx, enemy, color, bob) {
+    // Boss body
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillCircle(0, bob + 1, 18)
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, bob, 17)
+    gfx.fillStyle(lighten(color, 0.3), 0.4)
+    gfx.fillCircle(-5, bob - 6, 7)
+    gfx.fillStyle(0x000000, 0.2)
+    gfx.beginPath(); gfx.arc(0, bob, 17, 0, Math.PI); gfx.fillPath()
+
+    // Crown
+    gfx.fillStyle(0xf0c040)
+    gfx.fillRect(-10, -20 + bob, 20, 6)
+    gfx.fillStyle(0xffdd66)
+    for (let i = -1; i <= 1; i++) gfx.fillCircle(i * 7, -22 + bob, 4)
+    gfx.fillStyle(0xff4444)
+    gfx.fillCircle(0, -18 + bob, 2.5)
 
     // Eyes
     gfx.fillStyle(0xffffff)
-    gfx.fillCircle(-5, -2 + bob, 4); gfx.fillCircle(5, -2 + bob, 4)
-    gfx.fillStyle(0x111111)
-    gfx.fillCircle(-5, -2 + bob, 2); gfx.fillCircle(5, -2 + bob, 2)
+    gfx.fillEllipse(-7, -2 + bob, 6, 7)
+    gfx.fillEllipse(7, -2 + bob, 6, 7)
+    gfx.fillStyle(0xcc0000)
+    gfx.fillCircle(-7, -1 + bob, 3)
+    gfx.fillCircle(7, -1 + bob, 3)
+    gfx.fillStyle(0xffffff, 0.7)
+    gfx.fillCircle(-8, -3 + bob, 1.5)
+    gfx.fillCircle(6, -3 + bob, 1.5)
 
-    // Feet
-    gfx.fillStyle(0x1a1a1a)
-    gfx.fillRoundedRect(-8, r - 2 + bob, 6, 5, 2)
-    gfx.fillRoundedRect(2, r - 2 + bob, 6, 5, 2)
-
-    // Multi-HP bar
-    if (enemy.hp > 1 && enemy.type !== 'BossBomb') {
-      gfx.fillStyle(0x440000)
-      gfx.fillRect(-TS / 2 + 2, -TS / 2 - 2, TS - 4, 4)
-      gfx.fillStyle(0xee0000)
-      gfx.fillRect(-TS / 2 + 2, -TS / 2 - 2, Math.floor((TS - 4) * (enemy.hp / 2)), 4)
-    }
+    // HP bar
+    gfx.fillStyle(0x330000, 0.8)
+    gfx.fillRoundedRect(-H + 2, -H - 6, TS - 4, 6, 3)
+    gfx.fillStyle(0xee0000)
+    gfx.fillRoundedRect(-H + 2, -H - 6, Math.floor((TS - 4) * (enemy.hp / 5)), 6, 3)
+    gfx.fillStyle(0xff6666, 0.5)
+    gfx.fillRoundedRect(-H + 2, -H - 6, Math.floor((TS - 4) * (enemy.hp / 5)), 3, 3)
   }
 
   // ─── SYNC PLAYERS ─────────────────────────────────────────────────────
@@ -555,16 +730,14 @@ export default class GameScene extends Phaser.Scene {
         this.playerGfx[player.userId] = entry
       }
 
-      // Smooth interpolation toward target
-      const tx = player.px + TS / 2
-      const ty = player.py + TS / 2
+      const tx = player.px + H
+      const ty = player.py + H
       const lerpAmt = Math.min(1, delta * 0.015)
       const px = entry.gfx.x + (tx - entry.gfx.x) * lerpAmt
       const py = entry.gfx.y + (ty - entry.gfx.y) * lerpAmt
       entry.gfx.setPosition(px, py)
-      entry.nameText.setPosition(px, py - TS / 2 - 2)
+      entry.nameText.setPosition(px, py - H - 4)
 
-      // Death animation
       if (!player.alive) {
         const df = player.deathFrame || 0
         const scale = Math.max(0, 1 - df / 18)
@@ -576,7 +749,6 @@ export default class GameScene extends Phaser.Scene {
       this._drawPlayer(entry.gfx, player)
     }
 
-    // Remove disconnected players
     for (const id of Object.keys(this.playerGfx)) {
       if (!activeIds.has(id)) {
         this.playerGfx[id].gfx.destroy()
@@ -590,62 +762,158 @@ export default class GameScene extends Phaser.Scene {
     gfx.clear()
     const color = PLAYER_HEX[player.color] || 0xe8e8e8
     const frame = player.frame || 0
-    const bob = frame === 0 ? 0 : 1
-    const legA = frame === 0 ? 4 : 2
-    const legB = frame === 0 ? 2 : 4
+    const bob = frame === 0 ? 0 : 2
+    const legOff = frame === 0 ? 0 : 2
 
-    // Head (smooth)
-    gfx.fillStyle(0xf0f0f0)
-    gfx.fillRoundedRect(-9, -17 + bob, 18, 14, 5)
+    // ── GROUND SHADOW ──
+    gfx.fillStyle(0x000000, 0.25)
+    gfx.fillEllipse(0, 18, 22, 7)
 
-    // Eyes (direction)
-    gfx.fillStyle(0x111111)
-    if (player.dir === 'up') {
-      gfx.fillCircle(-3, -12 + bob, 2); gfx.fillCircle(3, -12 + bob, 2)
-    } else if (player.dir === 'left') {
-      gfx.fillCircle(-6, -10 + bob, 2)
-    } else if (player.dir === 'right') {
-      gfx.fillCircle(6, -10 + bob, 2)
-    } else {
-      gfx.fillCircle(-3, -10 + bob, 2); gfx.fillCircle(3, -10 + bob, 2)
-    }
+    // ── LEGS (behind body) ──
+    const legColor = darken(color, 0.35)
+    gfx.fillStyle(legColor)
+    gfx.fillRoundedRect(-8, 10 + bob, 7, 6 + (frame === 0 ? 0 : -legOff), 3)
+    gfx.fillRoundedRect(1, 10 + bob, 7, 6 + (frame === 0 ? 0 : legOff), 3)
+    // Shoes
+    gfx.fillStyle(darken(color, 0.5))
+    gfx.fillRoundedRect(-9, 14 + bob + (frame === 0 ? 0 : -legOff), 8, 4, 2)
+    gfx.fillRoundedRect(1, 14 + bob + (frame === 0 ? 0 : legOff), 8, 4, 2)
 
-    // Body
-    gfx.fillStyle(0xf0f0f0)
-    gfx.fillRoundedRect(-10, -4 + bob, 20, 15, 4)
+    // ── BODY (3D torso) ──
+    // Body shadow
+    gfx.fillStyle(darken(color, 0.3))
+    gfx.fillRoundedRect(-10, -1 + bob, 20, 14, 5)
+    // Main body
     gfx.fillStyle(color)
-    gfx.fillRoundedRect(-8, -2 + bob, 16, 11, 3)
+    gfx.fillRoundedRect(-9, -2 + bob, 18, 13, 5)
+    // Body highlight (top)
+    gfx.fillStyle(lighten(color, 0.25), 0.5)
+    gfx.fillRoundedRect(-7, -1 + bob, 14, 5, 3)
+    // Body shading (bottom)
+    gfx.fillStyle(darken(color, 0.15), 0.4)
+    gfx.fillRect(-9, 6 + bob, 18, 5)
 
-    // Legs
-    gfx.fillStyle(0x222222)
-    gfx.fillRoundedRect(-8, 10 + bob, 6, legA, 2)
-    gfx.fillRoundedRect(2, 10 + bob, 6, legB, 2)
+    // Belt buckle
+    gfx.fillStyle(0xf0c040)
+    gfx.fillRoundedRect(-3, 5 + bob, 6, 4, 2)
+    gfx.fillStyle(0xffdd66)
+    gfx.fillRect(-2, 6 + bob, 4, 2)
 
-    // Skull curse overlay
-    if (player.skullEffect) {
-      gfx.fillStyle(0xff0000, 0.13)
-      gfx.fillRect(-TS / 2, -TS / 2, TS, TS)
+    // ── ARMS ──
+    const armColor = lighten(color, 0.05)
+    if (player.dir === 'left') {
+      gfx.fillStyle(armColor)
+      gfx.fillRoundedRect(-13, 0 + bob, 6, 10, 3)
+      gfx.fillRoundedRect(4, 1 + bob, 6, 9, 3)
+    } else if (player.dir === 'right') {
+      gfx.fillStyle(armColor)
+      gfx.fillRoundedRect(-10, 1 + bob, 6, 9, 3)
+      gfx.fillRoundedRect(7, 0 + bob, 6, 10, 3)
+    } else {
+      gfx.fillStyle(armColor)
+      gfx.fillRoundedRect(-13, 0 + bob, 6, 10, 3)
+      gfx.fillRoundedRect(7, 0 + bob, 6, 10, 3)
+    }
+    // Gloves
+    gfx.fillStyle(0xeeeeee)
+    if (player.dir === 'left') {
+      gfx.fillCircle(-10, 10 + bob, 3.5)
+      gfx.fillCircle(7, 10 + bob, 3.5)
+    } else if (player.dir === 'right') {
+      gfx.fillCircle(-7, 10 + bob, 3.5)
+      gfx.fillCircle(10, 10 + bob, 3.5)
+    } else {
+      gfx.fillCircle(-10, 10 + bob, 3.5)
+      gfx.fillCircle(10, 10 + bob, 3.5)
     }
 
-    // Shield border
+    // ── HEAD (3D helmet) ──
+    // Helmet shadow
+    gfx.fillStyle(0xcccccc)
+    gfx.fillRoundedRect(-11, -19 + bob, 22, 18, 9)
+    // Helmet main
+    gfx.fillStyle(0xf0f0f0)
+    gfx.fillRoundedRect(-10, -20 + bob, 20, 17, 8)
+    // Helmet highlight (3D gloss)
+    gfx.fillStyle(0xffffff, 0.7)
+    gfx.fillRoundedRect(-8, -19 + bob, 12, 6, 4)
+    gfx.fillStyle(0xffffff, 0.9)
+    gfx.fillCircle(-4, -16 + bob, 2.5)
+
+    // Color stripe on helmet
+    gfx.fillStyle(color)
+    gfx.fillRoundedRect(-8, -9 + bob, 16, 4, 2)
+
+    // ── VISOR (dark screen) ──
+    gfx.fillStyle(0x0a0a1a)
+    gfx.fillRoundedRect(-7, -16 + bob, 14, 9, 4)
+    // Visor glass sheen
+    gfx.fillStyle(0x334455, 0.3)
+    gfx.fillRoundedRect(-6, -15 + bob, 12, 4, 2)
+
+    // ── EYES (in visor) ──
+    const eyeColor = lighten(color, 0.5)
+    if (player.dir === 'up') {
+      // Facing away — show helmet back
+      gfx.fillStyle(0xdddddd)
+      gfx.fillRoundedRect(-6, -15 + bob, 12, 8, 3)
+    } else if (player.dir === 'left') {
+      gfx.fillStyle(eyeColor)
+      gfx.fillCircle(-4, -11 + bob, 2.5)
+      gfx.fillCircle(-1, -12 + bob, 2)
+      gfx.fillStyle(0xffffff, 0.8)
+      gfx.fillCircle(-5, -12 + bob, 1)
+    } else if (player.dir === 'right') {
+      gfx.fillStyle(eyeColor)
+      gfx.fillCircle(4, -11 + bob, 2.5)
+      gfx.fillCircle(1, -12 + bob, 2)
+      gfx.fillStyle(0xffffff, 0.8)
+      gfx.fillCircle(3, -12 + bob, 1)
+    } else {
+      gfx.fillStyle(eyeColor)
+      gfx.fillCircle(-3, -11 + bob, 2.5)
+      gfx.fillCircle(3, -11 + bob, 2.5)
+      gfx.fillStyle(0xffffff, 0.8)
+      gfx.fillCircle(-4, -12 + bob, 1)
+      gfx.fillCircle(2, -12 + bob, 1)
+    }
+
+    // ── ANTENNA ──
+    gfx.fillStyle(0x888888)
+    gfx.fillRect(-1, -23 + bob, 2, 5)
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, -24 + bob, 3)
+    gfx.fillStyle(lighten(color, 0.4))
+    gfx.fillCircle(-1, -25 + bob, 1.5)
+
+    // ── EFFECTS ──
+    if (player.skullEffect) {
+      gfx.fillStyle(0xff0000, 0.2)
+      gfx.fillCircle(0, bob - 2, 20)
+      gfx.lineStyle(1.5, 0xff0000, 0.4)
+      gfx.strokeCircle(0, bob - 2, 20)
+    }
+
     if (player.shieldTimer > 0) {
-      gfx.fillStyle(0x4488ff, 0.67)
-      gfx.fillRect(-TS / 2, -TS / 2, TS, 2)
-      gfx.fillRect(-TS / 2, TS / 2 - 2, TS, 2)
-      gfx.fillRect(-TS / 2, -TS / 2, 2, TS)
-      gfx.fillRect(TS / 2 - 2, -TS / 2, 2, TS)
+      gfx.lineStyle(2, 0x44aaff, 0.7)
+      gfx.strokeCircle(0, bob - 2, 22)
+      gfx.fillStyle(0x4488ff, 0.12)
+      gfx.fillCircle(0, bob - 2, 22)
+      // Shield sparkle
+      gfx.fillStyle(0xffffff, 0.5)
+      gfx.fillCircle(-14, bob - 10, 2)
+      gfx.fillCircle(12, bob + 4, 1.5)
     }
   }
 
   // ─── SYNC FLOAT LABELS ────────────────────────────────────────────────
   syncLabels(state) {
-    // Clean old
     for (const t of this.labelTexts) t.destroy()
     this.labelTexts = []
 
     for (const label of state.floatLabels || []) {
       const progress = 1 - (label.timer || 0) / 40
-      const lx = label.x * TS + TS / 2
+      const lx = label.x * TS + H
       const ly = label.y * TS - progress * 30
       const txt = this.add.text(lx, ly, label.text, {
         fontSize: '10px',
@@ -660,16 +928,14 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── CAMERA ───────────────────────────────────────────────────────────
   updateCamera(state) {
-    // Follow the current player (or first player)
     const myPlayer = this.userId
       ? state.players[this.userId]
       : Object.values(state.players)[0]
 
     if (myPlayer && myPlayer.alive) {
-      this.camTarget.x = myPlayer.px + TS / 2
-      this.camTarget.y = myPlayer.py + TS / 2
-      
-      // Bound the camera strictly to the current player's zone
+      this.camTarget.x = myPlayer.px + H
+      this.camTarget.y = myPlayer.py + H
+
       if (this.mode === 'multiplayer' && state.zoneWidth) {
         const zoneStartX = myPlayer.zone * (state.zoneWidth + state.dividerWidth) * TS
         const totalHeight = state.grid.length * TS

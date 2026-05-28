@@ -103,19 +103,28 @@ export function detonateBomb(state, bombId) {
         state.hiddenGateTile = null
       }
 
-      // Spawn powerup (max 1 per level)
-      if (!state._powerupDropped && Math.random() < POWERUP_CHANCE) {
-        const pwTypes = [
-          POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP,
-          POWERUP.KICK, POWERUP.REMOTE, POWERUP.BOMB_PASS,
-          POWERUP.WALL_PASS, POWERUP.FULL_FIRE, POWERUP.SKULL,
-          POWERUP.CLOCK, POWERUP.MYSTERY,
-        ]
-        const type = pwTypes[Math.floor(Math.random() * pwTypes.length)]
-        // Don't spawn powerup on gate tile
-        if (state.grid[ey][ex] !== TILE.GATE) {
-          state.powerupsOnMap.push({ x: ex, y: ey, type })
-          state._powerupDropped = true
+      // Reveal powerup if hidden here (Singleplayer deterministic)
+      if (state.mode === 'singleplayer') {
+        if (state.hiddenPowerupTile && state.hiddenPowerupTile[0] === ex && state.hiddenPowerupTile[1] === ey) {
+          if (state.grid[ey][ex] !== TILE.GATE) {
+            state.powerupsOnMap.push({ x: ex, y: ey, type: state.powerupType || 'extrabomb' })
+            state.hiddenPowerupTile = null
+          }
+        }
+      } else {
+        // Multiplayer random drops
+        if (Math.random() < POWERUP_CHANCE) {
+          const pwTypes = [
+            POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP,
+            POWERUP.KICK, POWERUP.REMOTE, POWERUP.BOMB_PASS,
+            POWERUP.WALL_PASS, POWERUP.FULL_FIRE, POWERUP.SKULL,
+            POWERUP.CLOCK, POWERUP.MYSTERY,
+          ]
+          const type = pwTypes[Math.floor(Math.random() * pwTypes.length)]
+          // Don't spawn powerup on gate tile
+          if (state.grid[ey][ex] !== TILE.GATE) {
+            state.powerupsOnMap.push({ x: ex, y: ey, type })
+          }
         }
       }
     }

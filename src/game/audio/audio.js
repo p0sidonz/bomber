@@ -267,6 +267,13 @@ export const sfx = {
     playTone(160, 'sine', 0.08, 0.25)
     playNoise(0.05, 0.1, 600)
   },
+
+  allEnemiesDead() {
+    // Magical triumph chime
+    playSweep(400, 800, 'sine', 0.3, 0.2)
+    playTone(800, 'sine', 0.2, 0.2, 0.3)
+    playTone(1200, 'triangle', 0.3, 0.3, 0.5)
+  },
 }
 
 // ─── BACKGROUND MUSIC ─────────────────────────────────────────────────────────
@@ -294,15 +301,18 @@ const BGM_TRACKS = {
   },
 }
 
-export function playBGM(track) {
-  if (bgmPlaying && currentBgmTrack === track) return
+let bgmFast = false
+
+export function playBGM(track, fast = false) {
+  if (bgmPlaying && currentBgmTrack === track && bgmFast === fast) return
   stopBGM()
   currentBgmTrack = track
+  bgmFast = fast
   bgmPlaying = true
 
   const t = BGM_TRACKS[track] || BGM_TRACKS.world1
   const c = getCtx()
-  const beatLen = 60 / t.tempo
+  const beatLen = (60 / t.tempo) / (fast ? 1.5 : 1)
 
   let i = 0
   function scheduleNote() {
@@ -352,6 +362,12 @@ export function stopBGM() {
   }
   bgmOscillators = []
   currentBgmTrack = null
+  bgmFast = false
+}
+
+export function setBGMFast(fast) {
+  if (!bgmPlaying || !currentBgmTrack) return
+  playBGM(currentBgmTrack, fast)
 }
 
 export function setMasterVolume(vol) {

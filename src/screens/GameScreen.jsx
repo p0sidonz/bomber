@@ -133,8 +133,6 @@ export default function GameScreen({ user, room, nav }) {
         if (player.respawnTimer === 0) {
           player.alive = true
           player.powerups = []
-          player.maxBombs = 1
-          player.fireRange = 1
           player.speed = 8
           player.activeBombs = 0
           // 2-second invincibility shield (40 ticks at 20tps)

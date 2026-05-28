@@ -37,7 +37,7 @@ export default function LandingScreen({ user, nav }) {
   async function handleSelect(id) {
     setError('')
     if (id === 'classic') {
-      nav('classic')
+      nav('level_select')
     } else if (id === 'leaderboard') {
       nav('leaderboard')
     } else if (id === 'create') {

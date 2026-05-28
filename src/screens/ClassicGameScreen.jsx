@@ -5,8 +5,8 @@ import { movePlayer } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups, remoteDetonate } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
-import { sfx, playBGM, stopBGM } from '../game/audio/audio.js'
-import { insertHighScore } from '../supabase.js'
+import { sfx, playBGM, stopBGM, setBGMFast } from '../game/audio/audio.js'
+import { insertHighScore, saveCampaignProgress } from '../supabase.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
@@ -21,7 +21,7 @@ const PW_COLORS_CSS = {
   shield: '#4488ff', decoy: '#ff88ff', blockitem: '#888888', swap: '#00ffcc',
 }
 
-export default function ClassicGameScreen({ user, nav }) {
+export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
   const stateRef = useRef(null)
   const tickIntervalRef = useRef(null)
   const levelRef = useRef(1)
@@ -52,6 +52,8 @@ export default function ClassicGameScreen({ user, nav }) {
     // Restore stats from previous level (carry forward powerups)
     const prevPlayer = stateRef.current ? Object.values(stateRef.current.players)[0] : null
     const playerInState = Object.values(s.players)[0]
+    const resetPowerups = ['remote', 'wallpass', 'bombpass']
+
     if (prevPlayer) {
       playerInState.score = prevPlayer.score || 0
       playerInState.lives = prevPlayer.lives || 3
@@ -60,8 +62,29 @@ export default function ClassicGameScreen({ user, nav }) {
       playerInState.fireRange = prevPlayer.fireRange || 1
       playerInState.speed = prevPlayer.speed || 8
       // Carry forward powerups EXCEPT remote, wallpass, bombpass (these reset each level)
-      const resetPowerups = ['remote', 'wallpass', 'bombpass']
       playerInState.powerups = (prevPlayer.powerups || []).filter(p => !resetPowerups.includes(p))
+    } else {
+      // First load: try to read from Supabase user_metadata campaign
+      const campaign = user?.user_metadata?.campaign || {}
+      const levelStats = campaign.levelStats || {}
+      const stats = levelStats[level] // Load snapshot for this specific level
+
+      if (stats) {
+        playerInState.score = stats.score || 0
+        playerInState.lives = stats.lives || 3
+        playerInState.maxBombs = stats.maxBombs || 1
+        playerInState.fireRange = stats.fireRange || 1
+        playerInState.speed = stats.speed || 8
+        playerInState.powerups = (stats.powerups || []).filter(p => !resetPowerups.includes(p))
+      } else {
+        // Base stats if no snapshot exists (e.g. Level 1 or fresh account)
+        playerInState.score = 0
+        playerInState.lives = 3
+        playerInState.maxBombs = 1
+        playerInState.fireRange = 1
+        playerInState.speed = 8
+        playerInState.powerups = []
+      }
     }
     playerInState.startX = playerSpawn.x
     playerInState.startY = playerSpawn.y
@@ -130,10 +153,17 @@ export default function ClassicGameScreen({ user, nav }) {
     if (player.shieldTimer > 0) player.shieldTimer--
 
     // Update systems
+    const enemiesBefore = (state.enemies || []).filter(e => e.alive).length
+
     updateBombs(state)
     updateExplosions(state)
     checkPowerupPickups(state)
     updateEnemies(state)
+
+    const enemiesAfter = (state.enemies || []).filter(e => e.alive).length
+    if (enemiesBefore > 0 && enemiesAfter === 0) {
+      sfx.allEnemiesDead()
+    }
 
     // Advance tick
     state.tick = (state.tick || 0) + 1
@@ -144,14 +174,19 @@ export default function ClassicGameScreen({ user, nav }) {
       spawnOneals(state)
       state.timer = 300 * 20
     }
-    if (state.timer === 600) sfx.timerWarning()
+    if (state.timer === 600) {
+      sfx.timerWarning()
+      setBGMFast(true)
+    }
 
     // Respawn handling
     if (!player.alive) {
-      sfx.playerDeath()
-      state.status = 'game_over'
-      stopBGM()
-      handleRestart()
+      if (state.status !== 'game_over') {
+        sfx.playerDeath()
+        state.status = 'game_over'
+        stopBGM()
+        setOverlay('game_over')
+      }
       return
     }
 
@@ -193,6 +228,36 @@ export default function ClassicGameScreen({ user, nav }) {
     stopBGM()
     setOverlay('level_clear')
     stateRef.current.status = 'cleared'
+
+    const player = stateRef.current ? Object.values(stateRef.current.players)[0] : null
+    if (player) {
+      player.score = (player.score || 0) + 1000 // level clear bonus
+
+      // Save campaign progress to Supabase (Snapshot Memory)
+      const currentLevel = levelRef.current
+      const nextLevel = currentLevel + 1
+      const campaign = user?.user_metadata?.campaign || {}
+      
+      let maxLevel = campaign.maxLevel || 1
+      if (maxLevel < nextLevel) maxLevel = nextLevel
+
+      const levelStats = campaign.levelStats || {}
+
+      // Only save a snapshot for the next level if they've never reached it before
+      if (!levelStats[nextLevel]) {
+        levelStats[nextLevel] = {
+          score: player.score,
+          lives: player.lives,
+          maxBombs: player.maxBombs,
+          fireRange: player.fireRange,
+          speed: player.speed,
+          powerups: player.powerups
+        }
+      }
+
+      saveCampaignProgress({ maxLevel, levelStats })
+        .catch(err => console.error('Failed to save campaign:', err))
+    }
 
     setTimeout(() => {
       const nextLevel = levelRef.current + 1
@@ -286,8 +351,8 @@ export default function ClassicGameScreen({ user, nav }) {
 
   useEffect(() => {
     initInput()
-    loadLevel(1)
-    levelRef.current = 1
+    loadLevel(startingLevel)
+    levelRef.current = startingLevel
 
     tickIntervalRef.current = setInterval(gameTick, TICK_RATE)
 
@@ -296,11 +361,11 @@ export default function ClassicGameScreen({ user, nav }) {
       clearInterval(tickIntervalRef.current)
       stopBGM()
     }
-  }, [])
+  }, [startingLevel])
 
   function handleRestart() {
-    levelRef.current = 1
-    loadLevel(1)
+    const currentLevel = levelRef.current
+    loadLevel(currentLevel)
     setOverlay(null)
     stateRef.current.status = 'active'
     playBGM('world1')
@@ -309,7 +374,7 @@ export default function ClassicGameScreen({ user, nav }) {
   function handleQuit() {
     saveHighScore()
     stopBGM()
-    nav('landing')
+    nav('level_select')
   }
 
   return (
@@ -336,7 +401,7 @@ export default function ClassicGameScreen({ user, nav }) {
       <MobileControls />
 
       {/* Debug buttons */}
-      {/* {!DEBUG && (
+      {DEBUG && (
         <div style={{
           position: 'absolute', top: 60, right: 16, zIndex: 25,
           display: 'flex', flexDirection: 'column', gap: 6,
@@ -389,7 +454,7 @@ export default function ClassicGameScreen({ user, nav }) {
             }}
           >💥 BLAST WALLS</button>
         </div>
-      )} */}
+      )}
 
       {/* Overlays */}
       {overlay === 'paused' && (

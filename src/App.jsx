@@ -9,13 +9,15 @@ import ResultsScreen from './screens/ResultsScreen'
 import LeaderboardScreen from './screens/LeaderboardScreen'
 import ClassicGameScreen from './screens/ClassicGameScreen'
 import ResetPasswordScreen from './screens/ResetPasswordScreen'
+import LevelSelectScreen from './screens/LevelSelectScreen'
 
-// SCREENS: auth | landing | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password
+// SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password
 export default function App() {
   const [screen, setScreen] = useState('auth')
   const [user, setUser] = useState(null)
   const [room, setRoom] = useState(null)
   const [gameResult, setGameResult] = useState(null)
+  const [level, setLevel] = useState(1)
 
   useEffect(() => {
     // Restore session on mount
@@ -46,13 +48,15 @@ export default function App() {
   const nav = (s, extra = {}) => {
     if (extra.room) setRoom(extra.room)
     if (extra.result) setGameResult(extra.result)
+    if (extra.level) setLevel(extra.level)
     setScreen(s)
   }
 
   if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
   if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
   if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
-  if (screen === 'classic') return <ClassicGameScreen user={user} nav={nav} />
+  if (screen === 'level_select') return <LevelSelectScreen user={user} nav={nav} />
+  if (screen === 'classic') return <ClassicGameScreen user={user} startingLevel={level} nav={nav} />
   if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />
   if (screen === 'countdown') return <CountdownScreen room={room} nav={nav} />
   if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />

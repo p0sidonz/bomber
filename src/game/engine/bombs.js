@@ -214,8 +214,6 @@ export function killPlayer(state, userId, killerId) {
       player.x = player.startX
       player.y = player.startY
       player.powerups = []
-      player.maxBombs = 1
-      player.fireRange = 1
       player.speed = 8
       player.activeBombs = 0
     }

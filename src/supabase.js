@@ -151,6 +151,13 @@ export async function upsertGameState(roomId, tick, state) {
   if (error) throw error
 }
 
+export async function saveCampaignProgress(campaignData) {
+  const { error } = await supabase.auth.updateUser({
+    data: { campaign: campaignData }
+  })
+  if (error) throw error
+}
+
 // ─── LEADERBOARD HELPERS ─────────────────────────────────────────────────────
 
 export async function upsertLeaderboard(userId, displayName, wins, kills, gamesPlayed) {

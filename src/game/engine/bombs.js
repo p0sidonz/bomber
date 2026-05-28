@@ -112,13 +112,11 @@ export function detonateBomb(state, bombId) {
           }
         }
       } else {
-        // Multiplayer random drops
-        if (Math.random() < POWERUP_CHANCE) {
+        // Multiplayer: fewer powerups, only core types
+        if (Math.random() < 0.18) {
           const pwTypes = [
             POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP,
-            POWERUP.KICK, POWERUP.REMOTE, POWERUP.BOMB_PASS,
-            POWERUP.WALL_PASS, POWERUP.FULL_FIRE, POWERUP.SKULL,
-            POWERUP.CLOCK, POWERUP.MYSTERY,
+            POWERUP.KICK, POWERUP.FULL_FIRE,
           ]
           const type = pwTypes[Math.floor(Math.random() * pwTypes.length)]
           // Don't spawn powerup on gate tile
@@ -227,9 +225,13 @@ export function killPlayer(state, userId, killerId) {
     }
   }
 
-  // Respawn in Most Kills mode
-  if (state.mode === 'multiplayer' && state.matchType === 'most_kills') {
-    player.respawnTimer = 100 // 5s at 20tps
+  // Multiplayer: 3 lives with respawn
+  if (state.mode === 'multiplayer') {
+    player.lives = (player.lives || 3) - 1
+    if (player.lives > 0) {
+      // Set respawn timer (2 seconds = 40 ticks at 20tps)
+      player.respawnTimer = 40
+    }
   }
 }
 

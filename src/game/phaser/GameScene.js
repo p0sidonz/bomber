@@ -67,6 +67,9 @@ export default class GameScene extends Phaser.Scene {
   create() {
     this.genTextures()
 
+    // Generate player-colored portal texture
+    this._genPortalTexture()
+
     // Sprite tracking
     this.tileData = []
     this.playerGfx = {}
@@ -83,6 +86,30 @@ export default class GameScene extends Phaser.Scene {
     this.camTarget.setDepth(-1)
 
     this.setupCamera()
+  }
+
+  _genPortalTexture() {
+    // Get the player's color from state
+    const state = this.stateRef?.current
+    const myPlayer = this.userId && state?.players
+      ? state.players[this.userId]
+      : (state?.players ? Object.values(state.players)[0] : null)
+    const colorName = myPlayer?.color || 'white'
+    const pColor = PLAYER_HEX[colorName] || 0xe8e8e8
+
+    this._tex('portal_tile', (g) => {
+      // Dark background
+      g.fillStyle(0x0a0a14); g.fillRect(0, 0, TS, TS)
+      // Outer glow ring in player color
+      g.fillStyle(pColor, 0.2); g.fillCircle(H, H, 20)
+      g.fillStyle(pColor, 0.4); g.fillCircle(H, H, 15)
+      g.fillStyle(lighten(pColor, 0.4), 0.6); g.fillCircle(H, H, 10)
+      g.fillStyle(0xffffff, 0.7); g.fillCircle(H, H, 5)
+      // Border frame in player color
+      g.fillStyle(pColor)
+      g.fillRect(0, 0, TS, 3); g.fillRect(0, TS - 3, TS, 3)
+      g.fillRect(0, 0, 3, TS); g.fillRect(TS - 3, 0, 3, TS)
+    })
   }
 
   // ─── TEXTURE GENERATION (3D-style tiles) ─────────────────────────────
@@ -153,47 +180,38 @@ export default class GameScene extends Phaser.Scene {
       g.fillRect(H / 2 + 4, 5, H - 4, H - 8)
     })
 
-    // ── EXIT GATE (glowing portal) ──
+    // ── EXIT GATE (brown wooden door) ──
     this._tex('gate_exit', (g) => {
-      // Dark pit
-      g.fillStyle(0x0a0a1a); g.fillRect(0, 0, TS, TS)
-      // Outer glow ring
-      g.fillStyle(0x40ff80, 0.3); g.fillCircle(H, H, 22)
-      g.fillStyle(0x30dd60, 0.5); g.fillCircle(H, H, 18)
-      // Inner bright core
-      g.fillStyle(0x80ffaa, 0.7); g.fillCircle(H, H, 13)
-      g.fillStyle(0xeeffee, 0.8); g.fillCircle(H, H, 8)
-      // Arrow/star indicator
-      g.fillStyle(0xffffff)
-      g.fillRect(H - 1, H - 8, 2, 16)
-      g.fillRect(H - 8, H - 1, 16, 2)
-      // Corner frame
-      g.fillStyle(0x22cc55)
-      g.fillRect(0, 0, TS, 2); g.fillRect(0, TS - 2, TS, 2)
-      g.fillRect(0, 0, 2, TS); g.fillRect(TS - 2, 0, 2, TS)
+      const base = 0x6b4226
+      // Dark pit background
+      g.fillStyle(0x1a0e04); g.fillRect(0, 0, TS, TS)
+      // Wooden door frame
+      g.fillStyle(0x8b5a2b); g.fillRect(2, 2, TS - 4, TS - 4)
+      // Main wood face
+      g.fillStyle(base); g.fillRect(4, 4, TS - 8, TS - 8)
+      // Wood grain lines
+      g.fillStyle(darken(base, 0.15))
+      g.fillRect(8, 4, 2, TS - 8)
+      g.fillRect(18, 4, 2, TS - 8)
+      g.fillRect(28, 4, 2, TS - 8)
+      g.fillRect(38, 4, 2, TS - 8)
+      // Top highlight
+      g.fillStyle(lighten(base, 0.25)); g.fillRect(4, 4, TS - 8, 3)
+      // Bottom shadow
+      g.fillStyle(darken(base, 0.35)); g.fillRect(4, TS - 7, TS - 8, 3)
+      // Door handle (golden knob)
+      g.fillStyle(0xc8a030)
+      g.fillCircle(TS - 14, H, 4)
+      g.fillStyle(0xf0d060)
+      g.fillCircle(TS - 15, H - 1, 2)
+      // Arch detail at top
+      g.fillStyle(0x8b5a2b)
+      g.fillRect(2, 2, TS - 4, 4)
+      g.fillStyle(lighten(base, 0.3))
+      g.fillRect(4, 2, TS - 8, 2)
     })
 
-    // ── PORTAL CLOSED ──
-    this._tex('portal_closed', (g) => {
-      g.fillStyle(0x1a1a0a); g.fillRect(0, 0, TS, TS)
-      g.fillStyle(0x806020, 0.4); g.fillCircle(H, H, 18)
-      g.fillStyle(0x604010, 0.5); g.fillCircle(H, H, 12)
-      // X mark
-      g.fillStyle(0xf0c040)
-      g.fillRect(0, 0, TS, 3); g.fillRect(0, TS - 3, TS, 3)
-      g.fillRect(0, 0, 3, TS); g.fillRect(TS - 3, 0, 3, TS)
-    })
-
-    // ── PORTAL OPEN ──
-    this._tex('portal_open', (g) => {
-      g.fillStyle(0x0a1a0a); g.fillRect(0, 0, TS, TS)
-      g.fillStyle(0x20ff60, 0.3); g.fillCircle(H, H, 20)
-      g.fillStyle(0x40ff80, 0.5); g.fillCircle(H, H, 14)
-      g.fillStyle(0xeeffee, 0.6); g.fillCircle(H, H, 8)
-      g.fillStyle(0x30ff60)
-      g.fillRect(0, 0, TS, 3); g.fillRect(0, TS - 3, TS, 3)
-      g.fillRect(0, 0, 3, TS); g.fillRect(TS - 3, 0, 3, TS)
-    })
+    // Portal textures are drawn dynamically in syncGates based on player color
   }
 
   _tex(key, drawFn) {
@@ -224,7 +242,7 @@ export default class GameScene extends Phaser.Scene {
         if (tile === 1) wall = this.add.image(x, y, 'wall_solid').setDepth(1)
         else if (tile === 2) wall = this.add.image(x, y, 'wall_soft').setDepth(1)
         else if (tile === 3) wall = this.add.image(x, y, 'gate_exit').setDepth(1)
-        else if (tile === 4) wall = this.add.image(x, y, 'portal_open').setDepth(1)
+        else if (tile === 4) wall = this.add.image(x, y, 'portal_tile').setDepth(1)
 
         this.tileData[row][col] = { floor, wall, type: tile }
       }
@@ -287,7 +305,7 @@ export default class GameScene extends Phaser.Scene {
         if (tile === 1) entry.wall = this.add.image(x, y, 'wall_solid').setDepth(1)
         else if (tile === 2) entry.wall = this.add.image(x, y, 'wall_soft').setDepth(1)
         else if (tile === 3) entry.wall = this.add.image(x, y, 'gate_exit').setDepth(1)
-        else if (tile === 4) entry.wall = this.add.image(x, y, 'portal_open').setDepth(1)
+        else if (tile === 4) entry.wall = this.add.image(x, y, 'portal_tile').setDepth(1)
         entry.type = tile
       }
     }
@@ -514,27 +532,64 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── SYNC GATES ───────────────────────────────────────────────────────
+  // ─── SYNC GATES (teleport portals use player color) ────────────────────
   syncGates(state) {
     const activeGateKeys = new Set()
+    // Get the current player's color
+    const myPlayer = this.userId ? state.players[this.userId] : Object.values(state.players)[0]
+    const playerColorName = myPlayer?.color || 'white'
+    const playerColor = PLAYER_HEX[playerColorName] || 0xe8e8e8
+
     for (const gate of state.gates || []) {
       const key = `${gate.x},${gate.y}`
       activeGateKeys.add(key)
       const x = gate.x * TS + H
       const y = gate.y * TS + H
-      const texKey = gate.open ? 'portal_open' : 'portal_closed'
 
-      if (!this.gateGfx[key]) {
-        this.gateGfx[key] = { sprite: this.add.image(x, y, texKey).setDepth(1.5), open: gate.open }
-      } else if (this.gateGfx[key].open !== gate.open) {
-        this.gateGfx[key].sprite.setTexture(texKey)
-        this.gateGfx[key].open = gate.open
+      // Destroy and redraw every frame for color accuracy (gates are few, cheap to redraw)
+      if (this.gateGfx[key]) {
+        this.gateGfx[key].gfx.destroy()
       }
+
+      const gfx = this.add.graphics().setDepth(1.5).setPosition(x, y)
+      const halfTS = H
+
+      if (gate.open) {
+        // Open portal — glowing with player color
+        gfx.fillStyle(0x0a0a14); gfx.fillRect(-halfTS, -halfTS, TS, TS)
+        gfx.fillStyle(playerColor, 0.2); gfx.fillCircle(0, 0, 20)
+        gfx.fillStyle(playerColor, 0.4); gfx.fillCircle(0, 0, 15)
+        gfx.fillStyle(lighten(playerColor, 0.4), 0.6); gfx.fillCircle(0, 0, 10)
+        gfx.fillStyle(0xffffff, 0.7); gfx.fillCircle(0, 0, 5)
+        // Border frame in player color
+        gfx.fillStyle(playerColor)
+        gfx.fillRect(-halfTS, -halfTS, TS, 3)
+        gfx.fillRect(-halfTS, halfTS - 3, TS, 3)
+        gfx.fillRect(-halfTS, -halfTS, 3, TS)
+        gfx.fillRect(halfTS - 3, -halfTS, 3, TS)
+      } else {
+        // Closed portal — dimmed player color
+        gfx.fillStyle(0x0a0a14); gfx.fillRect(-halfTS, -halfTS, TS, TS)
+        gfx.fillStyle(darken(playerColor, 0.6), 0.3); gfx.fillCircle(0, 0, 16)
+        gfx.fillStyle(darken(playerColor, 0.4), 0.4); gfx.fillCircle(0, 0, 10)
+        // X mark
+        gfx.fillStyle(darken(playerColor, 0.2))
+        gfx.fillRect(-8, -1, 16, 2)
+        gfx.fillRect(-1, -8, 2, 16)
+        // Border frame dimmed
+        gfx.fillStyle(darken(playerColor, 0.3))
+        gfx.fillRect(-halfTS, -halfTS, TS, 3)
+        gfx.fillRect(-halfTS, halfTS - 3, TS, 3)
+        gfx.fillRect(-halfTS, -halfTS, 3, TS)
+        gfx.fillRect(halfTS - 3, -halfTS, 3, TS)
+      }
+
+      this.gateGfx[key] = { gfx, open: gate.open }
     }
 
     for (const key of Object.keys(this.gateGfx)) {
       if (!activeGateKeys.has(key)) {
-        this.gateGfx[key].sprite.destroy()
+        this.gateGfx[key].gfx.destroy()
         delete this.gateGfx[key]
       }
     }
@@ -743,7 +798,15 @@ export default class GameScene extends Phaser.Scene {
         const scale = Math.max(0, 1 - df / 18)
         entry.gfx.setScale(scale).setAlpha(scale).setRotation((df / 18) * Math.PI * 2)
       } else {
-        entry.gfx.setScale(1).setAlpha(player.wallPassTimer > 0 ? 0.55 : 1).setRotation(0)
+        entry.gfx.setScale(1).setRotation(0)
+        let alpha = 1
+        if (player.wallPassTimer > 0) alpha = 0.55
+        // Blink rapidly when shield is active (invincibility after respawn)
+        if (player.shieldTimer > 0) {
+          const blink = Math.sin(Date.now() / 80 * Math.PI) > 0 ? 1.0 : 0.25
+          alpha = blink
+        }
+        entry.gfx.setAlpha(alpha)
       }
 
       this._drawPlayer(entry.gfx, player)

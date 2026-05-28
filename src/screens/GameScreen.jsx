@@ -137,7 +137,8 @@ export default function GameScreen({ user, room, nav }) {
           player.fireRange = 1
           player.speed = 8
           player.activeBombs = 0
-          player.shieldTimer = 60
+          // 2-second invincibility shield (40 ticks at 20tps)
+          player.shieldTimer = 40
           
           // Re-spawn at their original zone spawn
           const spawn = state.spawnPoints?.[player.slot - 1] || { x: 1, y: 1 }
@@ -202,11 +203,12 @@ export default function GameScreen({ user, room, nav }) {
           player.px = portal.targetX * 48
           player.py = portal.targetY * 48
           player.zone = portal.targetZone
-          // Cooldown to avoid instant back-teleport (20 ticks = 1 second)
-          player.teleportCooldown = 20
+          // Long cooldown to prevent bounce-back: 3 seconds (60 ticks at 20tps)
+          // Player must move off the destination portal before they can teleport again
+          player.teleportCooldown = 60
           
           // Also give them a brief invincibility shield
-          player.shieldTimer = Math.max(player.shieldTimer || 0, 20)
+          player.shieldTimer = Math.max(player.shieldTimer || 0, 40)
           break
         }
       }

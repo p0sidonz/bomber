@@ -151,7 +151,7 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       {mode === 'singleplayer' && hudData && (
         <div style={{
           position: 'absolute',
-          bottom: isMobile ? '200px' : '10px',
+          bottom: isMobile ? '32px' : '10px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',

@@ -152,6 +152,9 @@ export async function upsertGameState(roomId, tick, state) {
 }
 
 export async function saveCampaignProgress(campaignData) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return // Guests do not save progress
+
   const { error } = await supabase.auth.updateUser({
     data: { campaign: campaignData }
   })
@@ -161,6 +164,7 @@ export async function saveCampaignProgress(campaignData) {
 // ─── LEADERBOARD HELPERS ─────────────────────────────────────────────────────
 
 export async function upsertLeaderboard(userId, displayName, wins, kills, gamesPlayed) {
+  if (userId === 'guest') return
   const { error } = await supabase
     .from('leaderboard')
     .upsert({
@@ -175,6 +179,7 @@ export async function upsertLeaderboard(userId, displayName, wins, kills, gamesP
 }
 
 export async function insertHighScore(userId, displayName, score, levelReached) {
+  if (userId === 'guest') return
   const { error } = await supabase
     .from('high_scores')
     .insert({ user_id: userId, display_name: displayName, score, level_reached: levelReached })

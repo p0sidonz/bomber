@@ -173,13 +173,20 @@ export default function AuthScreen({ onAuth }) {
             </button>
             
             {mode === 'login' && (
-              <div className="text-center mt-4 pt-2">
+              <div className="text-center mt-4 pt-2 flex flex-col items-center gap-3">
                 <button 
                   type="button" 
                   className="text-[7px] text-gray-500 hover:text-bm-accent transition-colors"
                   onClick={() => { setMode('forgot'); setError('') }}
                 >
                   FORGOT PASSWORD?
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-pixel bg-gray-700 w-full mt-2"
+                  onClick={() => onAuth({ id: 'guest', isGuest: true, user_metadata: { display_name: 'Guest', color: 'white' } })}
+                >
+                  PLAY AS GUEST
                 </button>
               </div>
             )}

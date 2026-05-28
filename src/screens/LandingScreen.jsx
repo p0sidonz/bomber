@@ -15,6 +15,8 @@ export default function LandingScreen({ user, nav }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const joinInputRef = useRef(null)
+  
+  const isGuest = user?.isGuest
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'PLAYER'
   const color = user?.user_metadata?.color || 'yellow'
 
@@ -28,13 +30,18 @@ export default function LandingScreen({ user, nav }) {
       if (showJoin) return
       if (e.key === 'ArrowUp') setSelected(s => Math.max(0, s - 1))
       if (e.key === 'ArrowDown') setSelected(s => Math.min(MENU_ITEMS.length - 1, s + 1))
-      if (e.key === 'Enter') handleSelect(MENU_ITEMS[selected].id)
+      if (e.key === 'Enter') {
+        const item = MENU_ITEMS[selected]
+        if (isGuest && ['create', 'join', 'leaderboard'].includes(item.id)) return
+        handleSelect(item.id)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, showJoin])
 
   async function handleSelect(id) {
+    if (isGuest && ['create', 'join', 'leaderboard'].includes(id)) return
     setError('')
     if (id === 'classic') {
       nav('level_select')
@@ -122,22 +129,32 @@ export default function LandingScreen({ user, nav }) {
         {/* Menu */}
         {!showJoin ? (
           <div className="w-full space-y-2">
-            {MENU_ITEMS.map((item, i) => (
-              <button
-                key={item.id}
-                id={`menu-${item.id}`}
-                className={`w-full text-left p-4 border-2 transition-all duration-150 flex items-center justify-between group ${
-                  selected === i
-                    ? 'border-bm-accent bg-bm-accent/10 text-bm-accent'
-                    : 'border-bm-border text-gray-400 hover:border-bm-accent/50 hover:text-gray-200'
-                }`}
-                onClick={() => handleSelect(item.id)}
-                onMouseEnter={() => setSelected(i)}
-              >
-                <span className="text-[10px]">{item.label}</span>
-                <span className="text-[7px] text-gray-600 group-hover:text-gray-400">{item.desc}</span>
-              </button>
-            ))}
+            {MENU_ITEMS.map((item, i) => {
+              const isDisabled = isGuest && ['create', 'join', 'leaderboard'].includes(item.id)
+              return (
+                <button
+                  key={item.id}
+                  id={`menu-${item.id}`}
+                  className={`w-full text-left p-4 border-2 transition-all duration-150 flex items-center justify-between group ${
+                    isDisabled 
+                      ? 'border-gray-800 bg-gray-900/50 text-gray-600 cursor-not-allowed opacity-60'
+                      : selected === i
+                        ? 'border-bm-accent bg-bm-accent/10 text-bm-accent'
+                        : 'border-bm-border text-gray-400 hover:border-bm-accent/50 hover:text-gray-200'
+                  }`}
+                  onClick={() => handleSelect(item.id)}
+                  onMouseEnter={() => !isDisabled && setSelected(i)}
+                >
+                  <span className="text-[10px]">
+                    {item.label}
+                    {isDisabled && <span className="text-[6px] text-bm-red ml-2 tracking-widest">(LOGIN REQ)</span>}
+                  </span>
+                  <span className={`text-[7px] ${isDisabled ? 'text-gray-700' : 'text-gray-600 group-hover:text-gray-400'}`}>
+                    {item.desc}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         ) : (
           <div className="w-full panel animate-slide-in">

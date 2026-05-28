@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signIn, signUp } from '../supabase'
+import { signIn, signUp, resetPasswordForEmail } from '../supabase'
 
 const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange']
 const COLOR_HEX = {
@@ -8,14 +8,14 @@ const COLOR_HEX = {
 }
 
 export default function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login') // login | signup
+  const [mode, setMode] = useState('login') // login | signup | forgot
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [color, setColor] = useState('red')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [signupDone, setSignupDone] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -25,11 +25,14 @@ export default function AuthScreen({ onAuth }) {
       if (mode === 'login') {
         const data = await signIn(email, password)
         onAuth(data.user)
+      } else if (mode === 'forgot') {
+        await resetPasswordForEmail(email)
+        setSuccessMsg('RESET LINK SENT')
       } else {
         if (!displayName.trim()) throw new Error('Display name required')
         if (displayName.length > 12) throw new Error('Name max 12 chars')
         await signUp(email, password, displayName.trim(), color)
-        setSignupDone(true)
+        setSuccessMsg('CHECK YOUR EMAIL')
       }
     } catch (err) {
       setError(err.message)
@@ -38,20 +41,20 @@ export default function AuthScreen({ onAuth }) {
     }
   }
 
-  if (signupDone) {
+  if (successMsg) {
     return (
       <div className="full-screen">
         <div className="panel max-w-md w-full mx-4 text-center space-y-6">
           <div className="text-4xl">📧</div>
           <h1 className="text-pixel text-bm-green text-xs leading-loose">
-            CHECK YOUR EMAIL
+            {successMsg}
           </h1>
           <p className="text-[8px] text-gray-400 leading-loose">
-            We sent a confirmation link to<br />
+            We sent an email to<br />
             <span className="text-bm-accent">{email}</span><br />
-            Click it to activate your account.
+            Click the link inside to continue.
           </p>
-          <button className="btn-pixel w-full" onClick={() => { setSignupDone(false); setMode('login') }}>
+          <button className="btn-pixel w-full" onClick={() => { setSuccessMsg(''); setMode('login') }}>
             BACK TO LOGIN
           </button>
         </div>
@@ -74,18 +77,24 @@ export default function AuthScreen({ onAuth }) {
         </div>
 
         {/* Tab toggle */}
-        <div className="flex mb-0 border-2 border-bm-border">
-          <button
-            className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'login' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
-            onClick={() => { setMode('login'); setError('') }}
-          >LOGIN</button>
-          <button
-            className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'signup' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
-            onClick={() => { setMode('signup'); setError('') }}
-          >SIGN UP</button>
-        </div>
+        {mode !== 'forgot' && (
+          <div className="flex mb-0 border-2 border-bm-border">
+            <button
+              className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'login' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
+              onClick={() => { setMode('login'); setError('') }}
+            >LOGIN</button>
+            <button
+              className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'signup' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
+              onClick={() => { setMode('signup'); setError('') }}
+            >SIGN UP</button>
+          </div>
+        )}
 
-        <div className="panel border-t-0">
+        <div className={`panel ${mode !== 'forgot' ? 'border-t-0' : ''}`}>
+          {mode === 'forgot' && (
+            <h2 className="text-[10px] text-bm-accent mb-4 text-center">RESET PASSWORD</h2>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[8px] text-gray-400 mb-2">EMAIL</label>
@@ -100,19 +109,21 @@ export default function AuthScreen({ onAuth }) {
               />
             </div>
 
-            <div>
-              <label className="block text-[8px] text-gray-400 mb-2">PASSWORD</label>
-              <input
-                className="input-pixel"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={6}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              />
-            </div>
+            {mode !== 'forgot' && (
+              <div>
+                <label className="block text-[8px] text-gray-400 mb-2">PASSWORD</label>
+                <input
+                  className="input-pixel"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                />
+              </div>
+            )}
 
             {mode === 'signup' && (
               <>
@@ -158,8 +169,32 @@ export default function AuthScreen({ onAuth }) {
               className="btn-pixel btn-primary w-full mt-2"
               disabled={loading}
             >
-              {loading ? 'LOADING...' : mode === 'login' ? 'LOGIN →' : 'CREATE ACCOUNT →'}
+              {loading ? 'LOADING...' : mode === 'login' ? 'LOGIN →' : mode === 'forgot' ? 'SEND RESET LINK →' : 'CREATE ACCOUNT →'}
             </button>
+            
+            {mode === 'login' && (
+              <div className="text-center mt-4 pt-2">
+                <button 
+                  type="button" 
+                  className="text-[7px] text-gray-500 hover:text-bm-accent transition-colors"
+                  onClick={() => { setMode('forgot'); setError('') }}
+                >
+                  FORGOT PASSWORD?
+                </button>
+              </div>
+            )}
+
+            {mode === 'forgot' && (
+              <div className="text-center mt-4 pt-2">
+                <button 
+                  type="button" 
+                  className="text-[7px] text-gray-500 hover:text-bm-accent transition-colors"
+                  onClick={() => { setMode('login'); setError('') }}
+                >
+                  ← BACK TO LOGIN
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

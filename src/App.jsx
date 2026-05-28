@@ -8,8 +8,9 @@ import GameScreen from './screens/GameScreen'
 import ResultsScreen from './screens/ResultsScreen'
 import LeaderboardScreen from './screens/LeaderboardScreen'
 import ClassicGameScreen from './screens/ClassicGameScreen'
+import ResetPasswordScreen from './screens/ResetPasswordScreen'
 
-// SCREENS: auth | landing | classic | create | join | lobby | countdown | game | results | leaderboard
+// SCREENS: auth | landing | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password
 export default function App() {
   const [screen, setScreen] = useState('auth')
   const [user, setUser] = useState(null)
@@ -25,7 +26,12 @@ export default function App() {
       }
     })
 
-    const { data: { subscription } } = onAuthChange((session) => {
+    const { data: { subscription } } = onAuthChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setScreen('reset_password')
+        return
+      }
+
       if (session) {
         setUser(session.user)
         if (screen === 'auth') setScreen('landing')
@@ -44,6 +50,7 @@ export default function App() {
   }
 
   if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
+  if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
   if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
   if (screen === 'classic') return <ClassicGameScreen user={user} nav={nav} />
   if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />

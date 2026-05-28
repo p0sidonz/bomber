@@ -111,7 +111,7 @@ export default function LandingScreen({ user, nav }) {
         {/* Logo */}
         <div className="text-center">
           <BombAnimation />
-          <h1 className="logo-text text-3xl mt-4">DESIBOMBER</h1>
+          <h1 className="logo-text text-3xl mt-4">BombRush Arena</h1>
           <div className="flex items-center justify-center gap-2 mt-3">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent to-bm-accent opacity-30" />
             <span className="text-[7px] text-gray-500 tracking-widest">BLAST YOUR WAY TO GLORY</span>

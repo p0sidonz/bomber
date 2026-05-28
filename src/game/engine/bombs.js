@@ -1,5 +1,6 @@
 import { TILE, POWERUP, POWERUP_CHANCE, applyPowerup } from './state.js'
 import { getTile } from './physics.js'
+import { sfx } from '../audio/audio.js'
 
 let bombIdCounter = 0
 let explosionIdCounter = 0
@@ -66,6 +67,9 @@ export function updateBombs(state) {
 export function detonateBomb(state, bombId) {
   const bombIdx = state.bombs.findIndex(b => b.id === bombId)
   if (bombIdx === -1) return
+
+  // Play explosion sound
+  try { sfx.explosion() } catch (_) {}
 
   const bomb = state.bombs[bombIdx]
   state.bombs.splice(bombIdx, 1)
@@ -196,6 +200,9 @@ export function killPlayer(state, userId, killerId) {
   const player = state.players[userId]
   if (!player || !player.alive) return
 
+  // Play death sound
+  try { sfx.playerDeath() } catch (_) {}
+
   if (state.mode === 'singleplayer') {
     player.lives--
     if (player.lives <= 0) {
@@ -241,6 +248,7 @@ export function damageEnemy(state, enemy, killerId) {
   if (enemy.hp <= 0) {
     enemy.alive = false
     enemy.deathFrame = 0
+    try { sfx.enemyDeath() } catch (_) {}
 
     // Score for classic mode
     if (killerId && state.players[killerId]) {

@@ -1,4 +1,5 @@
 import { TILE, SPEED_VALUES } from './state.js'
+import { sfx } from '../audio/audio.js'
 
 export const TILE_SIZE = 48
 
@@ -86,6 +87,17 @@ export function movePlayer(player, keys, grid, bombs, skullReverse = false) {
     player.x = Math.floor((newPx + TILE_SIZE / 2) / TILE_SIZE)
     player.y = Math.floor((newPy + TILE_SIZE / 2) / TILE_SIZE)
   } else {
+    // Kick bomb — if player has kick powerup and is blocked by a bomb, kick it!
+    if (player.powerups?.includes('kick')) {
+      const targetTileX = player.x + dx
+      const targetTileY = player.y + dy
+      const bombToKick = bombs.find(b => b.x === targetTileX && b.y === targetTileY && !b.sliding)
+      if (bombToKick) {
+        kickBomb(bombToKick, dirKey, grid)
+        try { sfx.kick() } catch (_) {}
+      }
+    }
+
     // Slide along wall
     if (dx !== 0) {
       // Moving horizontally, try to slide vertically
@@ -106,11 +118,12 @@ export function movePlayer(player, keys, grid, bombs, skullReverse = false) {
     }
   }
 
-  // Animation frame
+  // Animation frame + walk sound
   player.frameTimer = (player.frameTimer || 0) + 1
-  if (player.frameTimer >= 8) {
+  if (player.frameTimer >= 5) {
     player.frame = (player.frame + 1) % 2
     player.frameTimer = 0
+    try { sfx.walk() } catch (_) {}
   }
 }
 

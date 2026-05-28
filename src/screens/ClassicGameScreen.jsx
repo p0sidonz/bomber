@@ -49,12 +49,19 @@ export default function ClassicGameScreen({ user, nav }) {
     s.powerupType = powerupType
     s.enemies = enemies
 
-    // Restore score and lives from previous level
+    // Restore stats from previous level (carry forward powerups)
     const prevPlayer = stateRef.current ? Object.values(stateRef.current.players)[0] : null
     const playerInState = Object.values(s.players)[0]
     if (prevPlayer) {
       playerInState.score = prevPlayer.score || 0
       playerInState.lives = prevPlayer.lives || 3
+      // Carry forward accumulated stats
+      playerInState.maxBombs = prevPlayer.maxBombs || 1
+      playerInState.fireRange = prevPlayer.fireRange || 1
+      playerInState.speed = prevPlayer.speed || 8
+      // Carry forward powerups EXCEPT remote, wallpass, bombpass (these reset each level)
+      const resetPowerups = ['remote', 'wallpass', 'bombpass']
+      playerInState.powerups = (prevPlayer.powerups || []).filter(p => !resetPowerups.includes(p))
     }
     playerInState.startX = playerSpawn.x
     playerInState.startY = playerSpawn.y
@@ -303,7 +310,7 @@ export default function ClassicGameScreen({ user, nav }) {
       <MobileControls />
 
       {/* Debug buttons */}
-      {DEBUG && (
+      {/* {!DEBUG && (
         <div style={{
           position: 'absolute', top: 60, right: 16, zIndex: 25,
           display: 'flex', flexDirection: 'column', gap: 6,
@@ -342,24 +349,21 @@ export default function ClassicGameScreen({ user, nav }) {
                       s.grid[y][x] = 3 // GATE
                       s.gateVisible = true
                       s.hiddenGateTile = null
+                    // Reveal powerup if hidden here
+                    } else if (s.hiddenPowerupTile && s.hiddenPowerupTile[0] === x && s.hiddenPowerupTile[1] === y) {
+                      s.grid[y][x] = 0 // EMPTY
+                      s.powerupsOnMap.push({ x, y, type: s.powerupType || 'extrabomb' })
+                      s.hiddenPowerupTile = null
                     } else {
                       s.grid[y][x] = 0 // EMPTY
                     }
                   }
                 }
               }
-              // Spawn a powerup near the player if none exists
-              if (!s._powerupDropped && s.powerupsOnMap.length === 0) {
-                const player = Object.values(s.players)[0]
-                if (player) {
-                  s.powerupsOnMap.push({ x: player.x + 2, y: player.y, type: 'fireup' })
-                  s._powerupDropped = true
-                }
-              }
             }}
           >💥 BLAST WALLS</button>
         </div>
-      )}
+      )} */}
 
       {/* Overlays */}
       {overlay === 'paused' && (

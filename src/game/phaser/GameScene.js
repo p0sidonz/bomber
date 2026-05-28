@@ -654,74 +654,326 @@ export default class GameScene extends Phaser.Scene {
       return
     }
 
-    const r = enemy.type === 'Titan' ? 16 : 13
+    // Draw unique persona based on enemy type
+    switch (enemy.type) {
+      case 'Ballom':
+        this._drawBallom(gfx, color, bob, enemy)
+        break
+      case 'Oneal':
+        this._drawOneal(gfx, color, bob, enemy)
+        break
+      case 'Dahl':
+        this._drawDahl(gfx, color, bob, enemy)
+        break
+      case 'Minvo':
+        this._drawMinvo(gfx, color, bob, enemy)
+        break
+      case 'Doria':
+        this._drawDoria(gfx, color, bob, enemy)
+        break
+      case 'Ghost':
+        this._drawGhost(gfx, color, bob, enemy)
+        break
+      case 'Rocky':
+        this._drawRocky(gfx, color, bob, enemy)
+        break
+      case 'Blaze':
+        this._drawBlaze(gfx, color, bob, enemy)
+        break
+      default:
+        this._drawDefaultEnemy(gfx, color, bob, enemy)
+        break
+    }
 
-    // ── 3D BODY ──
-    // Base body (slightly darker)
+    // HP bar (for multi-hp enemies)
+    if (enemy.hp > 1) {
+      gfx.fillStyle(0x330000, 0.8)
+      gfx.fillRoundedRect(-H + 4, -H - 4, TS - 8, 5, 2)
+      gfx.fillStyle(0xee2222)
+      gfx.fillRoundedRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5, 2)
+    }
+  }
+
+  // ── BALLOM: Cute bouncing slime blob ──
+  _drawBallom(gfx, color, bob, enemy) {
+    const squish = bob > 0 ? 0.85 : 1.0
+    // Jiggly body
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillEllipse(0, bob + 2, 14, 12 * squish)
+    gfx.fillStyle(color)
+    gfx.fillEllipse(0, bob, 13, 11 * squish)
+    // Shine blob
+    gfx.fillStyle(lighten(color, 0.5), 0.5)
+    gfx.fillEllipse(-4, bob - 4, 5, 4)
+    gfx.fillStyle(0xffffff, 0.4)
+    gfx.fillCircle(-3, bob - 5, 2)
+    // Cute dot eyes
+    gfx.fillStyle(0x111122)
+    gfx.fillCircle(-4, bob, 2.5)
+    gfx.fillCircle(4, bob, 2.5)
+    gfx.fillStyle(0xffffff, 0.8)
+    gfx.fillCircle(-5, bob - 1, 1)
+    gfx.fillCircle(3, bob - 1, 1)
+    // Happy mouth
+    gfx.lineStyle(1.5, darken(color, 0.5))
+    gfx.beginPath()
+    gfx.arc(0, bob + 3, 3, 0.2, Math.PI - 0.2)
+    gfx.strokePath()
+    // Feet bumps
+    gfx.fillStyle(darken(color, 0.3))
+    gfx.fillEllipse(-5, 14 + bob, 4, 3)
+    gfx.fillEllipse(5, 14 + bob, 4, 3)
+  }
+
+  // ── ONEAL: Aggressive with horns ──
+  _drawOneal(gfx, color, bob, enemy) {
+    // Body
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillCircle(0, bob + 1, 13)
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, bob, 12)
+    gfx.fillStyle(lighten(color, 0.3), 0.4)
+    gfx.fillCircle(-3, bob - 4, 5)
+    // Horns
+    gfx.fillStyle(darken(color, 0.4))
+    gfx.fillTriangle(-8, bob - 10, -12, bob - 18, -4, bob - 12)
+    gfx.fillTriangle(8, bob - 10, 12, bob - 18, 4, bob - 12)
+    gfx.fillStyle(lighten(color, 0.2))
+    gfx.fillTriangle(-7, bob - 10, -11, bob - 16, -5, bob - 12)
+    gfx.fillTriangle(7, bob - 10, 11, bob - 16, 5, bob - 12)
+    // Angry eyes
+    this._drawEnemyEyes(gfx, bob, enemy, 0xffcc00, true)
+    // Fanged mouth
+    gfx.fillStyle(0x220000)
+    gfx.fillRoundedRect(-5, bob + 4, 10, 4, 2)
+    gfx.fillStyle(0xffffff)
+    gfx.fillTriangle(-3, bob + 4, -1, bob + 7, -5, bob + 7)
+    gfx.fillTriangle(3, bob + 4, 1, bob + 7, 5, bob + 7)
+    // Feet
+    gfx.fillStyle(darken(color, 0.35))
+    gfx.fillEllipse(-5, 14 + bob, 5, 4)
+    gfx.fillEllipse(5, 14 + bob, 5, 4)
+  }
+
+  // ── DAHL: Spiky ball ──
+  _drawDahl(gfx, color, bob, enemy) {
+    // Spikes around body
+    const spikeCount = 8
+    for (let i = 0; i < spikeCount; i++) {
+      const angle = (i / spikeCount) * Math.PI * 2 + (bob > 0 ? 0.1 : 0)
+      const sx = Math.cos(angle) * 16
+      const sy = Math.sin(angle) * 16 + bob
+      gfx.fillStyle(darken(color, 0.3))
+      gfx.fillTriangle(
+        Math.cos(angle) * 8, Math.sin(angle) * 8 + bob,
+        sx + Math.cos(angle + 0.3) * 3, sy + Math.sin(angle + 0.3) * 3,
+        sx + Math.cos(angle - 0.3) * 3, sy + Math.sin(angle - 0.3) * 3
+      )
+    }
+    // Round body
+    gfx.fillStyle(darken(color, 0.15))
+    gfx.fillCircle(0, bob + 1, 11)
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, bob, 10)
+    gfx.fillStyle(lighten(color, 0.4), 0.5)
+    gfx.fillCircle(-3, bob - 3, 4)
+    // Beady eyes
+    gfx.fillStyle(0xffffff)
+    gfx.fillCircle(-4, bob - 1, 3)
+    gfx.fillCircle(4, bob - 1, 3)
+    gfx.fillStyle(0x111122)
+    gfx.fillCircle(-4, bob, 2)
+    gfx.fillCircle(4, bob, 2)
+  }
+
+  // ── MINVO: Ninja with bandana ──
+  _drawMinvo(gfx, color, bob, enemy) {
+    // Body
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillCircle(0, bob + 1, 12)
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, bob, 11)
+    gfx.fillStyle(lighten(color, 0.3), 0.3)
+    gfx.fillCircle(-3, bob - 4, 4)
+    // Bandana
+    gfx.fillStyle(0xcc2020)
+    gfx.fillRoundedRect(-13, bob - 6, 26, 5, 2)
+    // Bandana tails
+    gfx.fillStyle(0xaa1818)
+    gfx.fillTriangle(11, bob - 4, 16, bob - 8, 14, bob - 2)
+    gfx.fillTriangle(13, bob - 4, 18, bob - 6, 16, bob - 1)
+    // Narrow determined eyes
+    gfx.fillStyle(0xffffff)
+    gfx.fillRoundedRect(-7, bob - 2, 5, 3, 1)
+    gfx.fillRoundedRect(2, bob - 2, 5, 3, 1)
+    gfx.fillStyle(0x111122)
+    gfx.fillCircle(-4, bob - 1, 1.5)
+    gfx.fillCircle(5, bob - 1, 1.5)
+    // Feet
+    gfx.fillStyle(darken(color, 0.4))
+    gfx.fillEllipse(-4, 13 + bob, 4, 3)
+    gfx.fillEllipse(4, 13 + bob, 4, 3)
+  }
+
+  // ── DORIA: Jellyfish with tentacles ──
+  _drawDoria(gfx, color, bob, enemy) {
+    // Dome body
+    gfx.fillStyle(darken(color, 0.15))
+    gfx.fillEllipse(0, bob - 2, 14, 10)
+    gfx.fillStyle(color, 0.85)
+    gfx.fillEllipse(0, bob - 2, 13, 9)
+    gfx.fillStyle(lighten(color, 0.5), 0.4)
+    gfx.fillEllipse(-3, bob - 5, 5, 3)
+    // Tentacles (wavy)
+    const wave = bob > 0 ? 2 : -2
+    gfx.fillStyle(darken(color, 0.1), 0.7)
+    for (let i = -2; i <= 2; i++) {
+      const tx = i * 5
+      gfx.fillRoundedRect(tx - 1, bob + 6, 2, 10, 1)
+      gfx.fillCircle(tx + (i % 2 === 0 ? wave : -wave), bob + 15, 2)
+    }
+    // Eyes
+    gfx.fillStyle(0xffffff, 0.9)
+    gfx.fillCircle(-4, bob - 2, 3)
+    gfx.fillCircle(4, bob - 2, 3)
+    gfx.fillStyle(0x220044)
+    gfx.fillCircle(-4, bob - 1, 2)
+    gfx.fillCircle(4, bob - 1, 2)
+  }
+
+  // ── GHOST: Translucent floating spirit ──
+  _drawGhost(gfx, color, bob, enemy) {
+    const floatBob = bob - 3
+    // Ghost body (tall, wispy)
+    gfx.fillStyle(color, 0.4)
+    gfx.fillEllipse(0, floatBob, 13, 14)
+    gfx.fillStyle(lighten(color, 0.3), 0.5)
+    gfx.fillEllipse(0, floatBob - 2, 11, 11)
+    gfx.fillStyle(0xffffff, 0.3)
+    gfx.fillCircle(-3, floatBob - 5, 4)
+    // Wispy tail
+    gfx.fillStyle(color, 0.25)
+    gfx.fillTriangle(-8, floatBob + 10, 0, floatBob + 18, 8, floatBob + 10)
+    gfx.fillTriangle(-5, floatBob + 12, -2, floatBob + 20, 1, floatBob + 12)
+    gfx.fillTriangle(2, floatBob + 12, 5, floatBob + 20, 8, floatBob + 12)
+    // Hollow eyes
+    gfx.fillStyle(0x111133, 0.8)
+    gfx.fillEllipse(-4, floatBob - 1, 4, 5)
+    gfx.fillEllipse(4, floatBob - 1, 4, 5)
+    // Eerie glow pupils
+    gfx.fillStyle(0x88aaff, 0.8)
+    gfx.fillCircle(-4, floatBob, 1.5)
+    gfx.fillCircle(4, floatBob, 1.5)
+    // Open mouth
+    gfx.fillStyle(0x111133, 0.6)
+    gfx.fillEllipse(0, floatBob + 5, 3, 4)
+  }
+
+  // ── ROCKY: Stone golem, blocky shape ──
+  _drawRocky(gfx, color, bob, enemy) {
+    // Blocky body
+    gfx.fillStyle(darken(color, 0.3))
+    gfx.fillRoundedRect(-12, bob - 10, 24, 22, 4)
+    gfx.fillStyle(color)
+    gfx.fillRoundedRect(-11, bob - 9, 22, 20, 3)
+    // Cracks
+    gfx.lineStyle(1, darken(color, 0.4), 0.5)
+    gfx.beginPath()
+    gfx.moveTo(-5, bob - 8); gfx.lineTo(-2, bob - 2); gfx.lineTo(-6, bob + 4)
+    gfx.strokePath()
+    gfx.beginPath()
+    gfx.moveTo(4, bob - 6); gfx.lineTo(7, bob + 1); gfx.lineTo(3, bob + 6)
+    gfx.strokePath()
+    // Highlight
+    gfx.fillStyle(lighten(color, 0.25), 0.4)
+    gfx.fillRoundedRect(-9, bob - 8, 8, 6, 2)
+    // Small determined eyes
+    gfx.fillStyle(0xffffff)
+    gfx.fillRoundedRect(-7, bob - 3, 5, 4, 1)
+    gfx.fillRoundedRect(2, bob - 3, 5, 4, 1)
+    gfx.fillStyle(0x111122)
+    gfx.fillCircle(-5, bob - 1, 2)
+    gfx.fillCircle(4, bob - 1, 2)
+    // Thick feet
+    gfx.fillStyle(darken(color, 0.4))
+    gfx.fillRoundedRect(-10, bob + 10, 8, 6, 2)
+    gfx.fillRoundedRect(2, bob + 10, 8, 6, 2)
+  }
+
+  // ── BLAZE: Fire elemental ──
+  _drawBlaze(gfx, color, bob, enemy) {
+    // Flame body
+    const flicker = bob > 0 ? 1 : -1
+    gfx.fillStyle(0xff2200, 0.3)
+    gfx.fillCircle(flicker, bob - 2, 16)
+    gfx.fillStyle(color, 0.7)
+    gfx.fillCircle(0, bob, 12)
+    gfx.fillStyle(0xffaa00, 0.6)
+    gfx.fillCircle(0, bob + 1, 9)
+    gfx.fillStyle(0xffdd44, 0.5)
+    gfx.fillCircle(0, bob + 2, 5)
+    // Flame tips
+    gfx.fillStyle(0xff4400, 0.5)
+    gfx.fillTriangle(-6, bob - 8, -2 + flicker, bob - 18, 2, bob - 8)
+    gfx.fillTriangle(3, bob - 6, 6 + flicker, bob - 15, 9, bob - 6)
+    gfx.fillTriangle(-9, bob - 4, -7 + flicker, bob - 13, -4, bob - 4)
+    gfx.fillStyle(0xffaa00, 0.4)
+    gfx.fillTriangle(-4, bob - 8, 0 + flicker, bob - 16, 4, bob - 8)
+    // Eyes (white hot)
+    gfx.fillStyle(0xffffff, 0.9)
+    gfx.fillCircle(-4, bob - 1, 3)
+    gfx.fillCircle(4, bob - 1, 3)
+    gfx.fillStyle(0xff0000)
+    gfx.fillCircle(-4, bob, 1.5)
+    gfx.fillCircle(4, bob, 1.5)
+  }
+
+  // ── DEFAULT: Generic enemy (for types without unique art) ──
+  _drawDefaultEnemy(gfx, color, bob, enemy) {
+    const r = enemy.type === 'Titan' ? 16 : 13
+    // Body
     gfx.fillStyle(darken(color, 0.2))
     gfx.fillCircle(0, bob + 1, r)
-    // Main body
     gfx.fillStyle(color)
     gfx.fillCircle(0, bob, r)
-    // Bottom shadow (hemisphere)
     gfx.fillStyle(darken(color, 0.35), 0.5)
-    gfx.beginPath()
-    gfx.arc(0, bob, r, 0.2, Math.PI - 0.2)
-    gfx.fillPath()
-    // Top specular highlight
+    gfx.beginPath(); gfx.arc(0, bob, r, 0.2, Math.PI - 0.2); gfx.fillPath()
     gfx.fillStyle(lighten(color, 0.4), 0.5)
     gfx.fillCircle(-r * 0.25, bob - r * 0.35, r * 0.4)
-    gfx.fillStyle(0xffffff, 0.4)
-    gfx.fillCircle(-r * 0.2, bob - r * 0.4, r * 0.2)
-    // Rim light
-    gfx.lineStyle(1, lighten(color, 0.3), 0.3)
-    gfx.beginPath()
-    gfx.arc(0, bob, r - 1, -Math.PI * 0.8, -Math.PI * 0.2)
-    gfx.strokePath()
+    // Eyes
+    this._drawEnemyEyes(gfx, bob, enemy)
+    // Mouth
+    gfx.fillStyle(darken(color, 0.5))
+    gfx.fillRoundedRect(-4, bob + 5, 8, 3, 1.5)
+    // Feet
+    gfx.fillStyle(darken(color, 0.35))
+    gfx.fillEllipse(-5, r + bob, 5, 4)
+    gfx.fillEllipse(5, r + bob, 5, 4)
+  }
 
-    // ── EYES (track direction) ──
+  // Helper: draw enemy eyes with directional tracking
+  _drawEnemyEyes(gfx, bob, enemy, pupilColor = 0x111122, angry = false) {
     let epx = 0, epy = -2
     if (enemy.dir === 'left') epx = -2
     else if (enemy.dir === 'right') epx = 2
     else if (enemy.dir === 'up') epy = -4
     else if (enemy.dir === 'down') epy = 0
 
-    // Eye whites (3D ovals)
     gfx.fillStyle(0xfafafa)
-    gfx.fillEllipse(epx - 5, epy + bob, 5, 6)
-    gfx.fillEllipse(epx + 5, epy + bob, 5, 6)
-    // Eye shadow
-    gfx.fillStyle(0xdddddd, 0.5)
-    gfx.fillEllipse(epx - 5, epy + bob + 1, 5, 3)
-    gfx.fillEllipse(epx + 5, epy + bob + 1, 5, 3)
-    // Pupils
-    gfx.fillStyle(0x111122)
+    gfx.fillEllipse(epx - 5, epy + bob, 5, angry ? 5 : 6)
+    gfx.fillEllipse(epx + 5, epy + bob, 5, angry ? 5 : 6)
+    if (angry) {
+      // Angry eyebrow slashes
+      gfx.fillStyle(0x111122, 0.7)
+      gfx.fillRect(epx - 8, epy + bob - 5, 7, 2)
+      gfx.fillRect(epx + 1, epy + bob - 5, 7, 2)
+    }
+    gfx.fillStyle(pupilColor)
     gfx.fillCircle(epx - 5 + (epx > 0 ? 1 : epx < 0 ? -1 : 0), epy + bob + 1, 2.5)
     gfx.fillCircle(epx + 5 + (epx > 0 ? 1 : epx < 0 ? -1 : 0), epy + bob + 1, 2.5)
-    // Pupil highlights
     gfx.fillStyle(0xffffff, 0.8)
     gfx.fillCircle(epx - 6, epy + bob - 1, 1)
     gfx.fillCircle(epx + 4, epy + bob - 1, 1)
-
-    // ── MOUTH ──
-    gfx.fillStyle(darken(color, 0.5))
-    gfx.fillRoundedRect(-4, bob + 5, 8, 3, 1.5)
-
-    // ── FEET (3D bumps) ──
-    gfx.fillStyle(darken(color, 0.4))
-    gfx.fillEllipse(-5, r + bob, 5, 4)
-    gfx.fillEllipse(5, r + bob, 5, 4)
-    gfx.fillStyle(darken(color, 0.2))
-    gfx.fillEllipse(-5, r + bob - 1, 5, 3)
-    gfx.fillEllipse(5, r + bob - 1, 5, 3)
-
-    // HP bar
-    if (enemy.hp > 1 && enemy.type !== 'BossBomb') {
-      gfx.fillStyle(0x330000, 0.8)
-      gfx.fillRoundedRect(-H + 4, -H - 4, TS - 8, 5, 2)
-      gfx.fillStyle(0xee2222)
-      gfx.fillRoundedRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5, 2)
-    }
   }
 
   _drawBoss(gfx, enemy, color, bob) {

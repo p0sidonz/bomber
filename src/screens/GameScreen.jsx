@@ -348,7 +348,7 @@ export default function GameScreen({ user, room, nav }) {
       )}
 
       {/* Debug Buttons */}
-      {gameReady && (
+      {/* {gameReady && (
         <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50, display: 'flex', gap: 8 }}>
           <button
             style={{
@@ -401,7 +401,7 @@ export default function GameScreen({ user, room, nav }) {
             }}
           >💥 BLAST WALLS</button>
         </div>
-      )}
+      )} */}
 
       {/* Controls hint */}
       <div style={{

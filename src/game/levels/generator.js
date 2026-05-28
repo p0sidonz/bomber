@@ -99,21 +99,28 @@ export function generateLevel(level) {
   // Hide exit gate under a random soft block
   const hiddenGateTile = softTiles[Math.floor(Math.random() * softTiles.length)] || [mapCols - 2, mapRows - 2]
 
-  // Deterministic Powerup Sequence
+  // Progressive Powerup Sequence — builds abilities over time
+  // Early: stat upgrades. Mid: new abilities. Late: stat boosts + rare abilities.
   const sequence = [
-    'extrabomb', // 1
-    'fireup',    // 2
-    'speedup',   // 3
-    'remote',    // 4
-    'bombpass',  // 5
-    'fullfire',  // 6
-    'kick',      // 7
-    'extrabomb', // 8
-    'fireup',    // 9
-    'wallpass',  // 10
+    'extrabomb', // Lv1:  +1 bomb — fundamental
+    'fireup',    // Lv2:  +1 range — needed to clear more
+    'speedup',   // Lv3:  faster movement
+    'extrabomb', // Lv4:  +1 bomb again — multi-bomb tactics
+    'fireup',    // Lv5:  +1 range again
+    'kick',      // Lv6:  kick bombs — new mechanic
+    'speedup',   // Lv7:  faster again
+    'remote',    // Lv8:  remote detonate — strategic play (resets next level)
+    'fullfire',  // Lv9:  max fire range — huge reward
+    'wallpass',  // Lv10: walk through walls! (resets next level)
+    'extrabomb', // Lv11: more bombs
+    'fireup',    // Lv12: more range
+    'speedup',   // Lv13: more speed
+    'remote',    // Lv14: remote again
+    'bombpass',  // Lv15: walk over bombs (resets next level)
   ]
-  const defaultPool = ['extrabomb', 'fireup', 'speedup', 'remote', 'bombpass', 'wallpass', 'fullfire', 'kick']
-  const powerupType = sequence[level - 1] || defaultPool[(level - 1) % defaultPool.length]
+  // After level 15, cycle through useful stat boosts
+  const latePool = ['extrabomb', 'fireup', 'speedup', 'fullfire', 'remote', 'kick']
+  const powerupType = sequence[level - 1] || latePool[(level - 1) % latePool.length]
 
   // Hide powerup under a DIFFERENT random soft block
   const pwCandidates = softTiles.filter(t => t[0] !== hiddenGateTile[0] || t[1] !== hiddenGateTile[1])

@@ -237,25 +237,51 @@ export default function ClassicGameScreen({ user, nav }) {
     }
   }
 
-  // Handle ESC for pause
+  // Handle ESC for pause and tab switching
   useEffect(() => {
+    function togglePause() {
+      setOverlay(prev => {
+        if (!prev) {
+          if (stateRef.current) stateRef.current.status = 'paused'
+          return 'paused'
+        }
+        if (prev === 'paused') {
+          if (stateRef.current) stateRef.current.status = 'active'
+          return null
+        }
+        return prev
+      })
+    }
+
     function handleKey(e) {
-      if (e.key === 'Escape') {
-        setOverlay(prev => {
-          if (!prev) {
-            if (stateRef.current) stateRef.current.status = 'paused'
+      if (e.key === 'Escape') togglePause()
+    }
+
+    function pauseGame() {
+      setOverlay(prev => {
+        if (!prev) {
+          if (stateRef.current && stateRef.current.status === 'active') {
+            stateRef.current.status = 'paused'
             return 'paused'
           }
-          if (prev === 'paused') {
-            if (stateRef.current) stateRef.current.status = 'active'
-            return null
-          }
-          return prev
-        })
-      }
+        }
+        return prev
+      })
     }
+
+    function handleVisibility() {
+      if (document.hidden) pauseGame()
+    }
+
     window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
+    window.addEventListener('blur', pauseGame)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      window.removeEventListener('blur', pauseGame)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   useEffect(() => {

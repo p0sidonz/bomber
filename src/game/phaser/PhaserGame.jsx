@@ -29,7 +29,7 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'landscape' }).catch(e => console.error('Failed to lock orientation', e))
       return () => {
-        ScreenOrientation.unlock().catch(e => console.error('Failed to unlock orientation', e))
+        ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error('Failed to unlock orientation', e))
       }
     }
   }, [])
@@ -47,7 +47,7 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       antialias: true,
       roundPixels: false,
       scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.ENVELOP,
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
       scene: [],

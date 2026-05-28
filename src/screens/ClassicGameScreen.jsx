@@ -407,7 +407,23 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       </div>
 
       {/* Mobile Touch Controls */}
-      <MobileControls />
+      {!overlay && <MobileControls />}
+
+      {/* Top right Pause Button */}
+      {!overlay && (
+        <button
+          style={{
+            position: 'absolute', top: 16, right: 16, zIndex: 300,
+            background: 'rgba(0,0,0,0.5)', color: '#fff',
+            border: '2px solid #f0c040', borderRadius: '4px',
+            padding: '8px 12px', fontFamily: '"Press Start 2P", monospace',
+            fontSize: '10px', cursor: 'pointer', pointerEvents: 'auto'
+          }}
+          onClick={() => setOverlay('paused')}
+        >
+          ⏸ PAUSE
+        </button>
+      )}
 
       {/* Debug buttons */}
       {DEBUG && (
@@ -467,7 +483,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
 
       {/* Overlays */}
       {overlay === 'paused' && (
-        <div className="countdown-overlay" style={{ zIndex: 30, flexDirection: 'column', overflowY: 'auto' }}>
+        <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column', overflowY: 'auto' }}>
           <h2 className="text-pixel text-bm-accent text-xl" style={{ marginBottom: 16 }}>PAUSED</h2>
 
           <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
@@ -506,7 +522,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       )}
 
       {overlay === 'level_clear' && (
-        <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 30 }}>
+        <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 300 }}>
           <div className="text-5xl">🎉</div>
           <h2 className="text-pixel text-bm-green text-lg">LEVEL CLEAR!</h2>
           <p style={{ fontSize: '8px', color: '#f0c040', fontFamily: '"Press Start 2P", monospace' }}>
@@ -519,7 +535,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       )}
 
       {overlay === 'game_over' && (
-        <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 30 }}>
+        <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 300 }}>
           <div className="text-5xl">💥</div>
           <h2 className="text-pixel text-bm-red text-xl">GAME OVER</h2>
           <p style={{ fontSize: '8px', color: '#f0c040', fontFamily: '"Press Start 2P", monospace' }}>
@@ -533,7 +549,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       )}
 
       {overlay === 'game_complete' && (
-        <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 30 }}>
+        <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 300 }}>
           <div className="text-5xl">🏆</div>
           <h2 className="text-pixel text-bm-yellow text-base leading-loose text-center">
             YOU BEAT<br />ALL 50 LEVELS!

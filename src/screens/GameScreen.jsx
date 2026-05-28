@@ -413,10 +413,26 @@ export default function GameScreen({ user, room, nav }) {
       </div>
 
       {/* Mobile Touch Controls */}
-      <MobileControls />
+      {!gameOver && <MobileControls />}
+
+      {/* Top right Back Button */}
+      {!gameOver && (
+        <button
+          style={{
+            position: 'absolute', top: 16, right: 16, zIndex: 300,
+            background: 'rgba(0,0,0,0.5)', color: '#fff',
+            border: '2px solid #f0c040', borderRadius: '4px',
+            padding: '8px 12px', fontFamily: '"Press Start 2P", monospace',
+            fontSize: '10px', cursor: 'pointer', pointerEvents: 'auto'
+          }}
+          onClick={() => nav('lobby', { room })}
+        >
+          ← BACK
+        </button>
+      )}
 
       {gameOver && (
-        <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 30 }}>
+        <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 300 }}>
           <div className="text-4xl">🏆</div>
           <h2 className="text-pixel text-bm-yellow text-lg">GAME OVER</h2>
           <p style={{ fontSize: '8px', color: '#888', fontFamily: '"Press Start 2P", monospace' }}>

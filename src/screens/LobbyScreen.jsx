@@ -137,7 +137,7 @@ export default function LobbyScreen({ user, room, nav }) {
         </div>
 
         {/* Map selector (host only) */}
-        {isHost && (
+        {/* {isHost && (
           <div className="panel">
             <h2 className="text-[8px] text-bm-accent mb-4">SELECT MAP</h2>
             <div className="grid grid-cols-5 gap-2">
@@ -153,10 +153,10 @@ export default function LobbyScreen({ user, room, nav }) {
               ))}
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Match type (host only) */}
-        {isHost && (
+        {/* {isHost && (
           <div className="panel">
             <h2 className="text-[8px] text-bm-accent mb-4">MATCH TYPE</h2>
             <div className="grid grid-cols-2 gap-2">
@@ -171,7 +171,7 @@ export default function LobbyScreen({ user, room, nav }) {
               ))}
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Actions */}
         <div className="flex gap-3">

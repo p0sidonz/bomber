@@ -15,6 +15,8 @@ import TosScreen from './screens/TosScreen'
 import ContactScreen from './screens/ContactScreen'
 import DeleteAccountScreen from './screens/DeleteAccountScreen'
 import { initializeAdMob } from './admob'
+import { Capacitor } from '@capacitor/core'
+import { ScreenOrientation } from '@capacitor/screen-orientation'
 
 // SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password | privacy | tos | contact | delete_account
 export default function App() {
@@ -26,6 +28,9 @@ export default function App() {
 
   useEffect(() => {
     initializeAdMob()
+    if (Capacitor.isNativePlatform()) {
+      ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error(e))
+    }
   }, [])
 
   useEffect(() => {

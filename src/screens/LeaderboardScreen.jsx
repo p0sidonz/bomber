@@ -77,9 +77,12 @@ export default function LeaderboardScreen({ user, nav }) {
 
 function MultiplayerBoard({ data, myUserId }) {
   return (
-    <div className="panel">
-      <div className="grid grid-cols-4 text-[7px] text-gray-500 mb-2 px-2">
-        <span>#</span><span>NAME</span><span className="text-right">WINS</span><span className="text-right">KILLS</span>
+    <div className="panel" style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 8px', marginBottom: '8px', whiteSpace: 'nowrap' }} className="text-[7px] text-gray-500">
+        <span style={{ width: '28px', flexShrink: 0 }}>#</span>
+        <span style={{ flex: 1, minWidth: 0 }}>NAME</span>
+        <span style={{ width: '48px', flexShrink: 0, textAlign: 'right' }}>WINS</span>
+        <span style={{ width: '48px', flexShrink: 0, textAlign: 'right' }}>KILLS</span>
       </div>
       {data.length === 0 && (
         <p className="text-[8px] text-gray-600 text-center py-4">No entries yet. Be the first!</p>
@@ -87,15 +90,16 @@ function MultiplayerBoard({ data, myUserId }) {
       {data.map((row, i) => (
         <div
           key={row.user_id}
-          className={`grid grid-cols-4 py-2 px-2 border-b border-bm-border/30 text-[8px] ${row.user_id === myUserId ? 'bg-bm-accent/10' : ''}`}
+          style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px', whiteSpace: 'nowrap' }}
+          className={`border-b border-bm-border/30 text-[8px] ${row.user_id === myUserId ? 'bg-bm-accent/10' : ''}`}
         >
-          <span className="text-gray-500">{i + 1}</span>
-          <span className={row.user_id === myUserId ? 'text-bm-accent' : ''}>
+          <span style={{ width: '28px', flexShrink: 0 }} className="text-gray-500">{i + 1}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }} className={row.user_id === myUserId ? 'text-bm-accent' : ''}>
             {i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}
             {row.display_name?.substring(0, 10)}
           </span>
-          <span className="text-right text-bm-yellow">{row.wins || 0}</span>
-          <span className="text-right text-bm-red">{row.kills || 0}</span>
+          <span style={{ width: '48px', flexShrink: 0, textAlign: 'right' }} className="text-bm-yellow">{row.wins || 0}</span>
+          <span style={{ width: '48px', flexShrink: 0, textAlign: 'right' }} className="text-bm-red">{row.kills || 0}</span>
         </div>
       ))}
     </div>
@@ -104,9 +108,12 @@ function MultiplayerBoard({ data, myUserId }) {
 
 function ClassicBoard({ data, myUserId }) {
   return (
-    <div className="panel">
-      <div className="grid grid-cols-4 text-[7px] text-gray-500 mb-2 px-2">
-        <span>#</span><span>NAME</span><span className="text-right">SCORE</span><span className="text-right">LVL</span>
+    <div className="panel" style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 8px', marginBottom: '8px', whiteSpace: 'nowrap' }} className="text-[7px] text-gray-500">
+        <span style={{ width: '28px', flexShrink: 0 }}>#</span>
+        <span style={{ flex: 1, minWidth: 0 }}>NAME</span>
+        <span style={{ width: '64px', flexShrink: 0, textAlign: 'right' }}>SCORE</span>
+        <span style={{ width: '36px', flexShrink: 0, textAlign: 'right' }}>LVL</span>
       </div>
       {data.length === 0 && (
         <p className="text-[8px] text-gray-600 text-center py-4">No high scores yet. Play Classic Mode!</p>
@@ -114,15 +121,16 @@ function ClassicBoard({ data, myUserId }) {
       {data.map((row, i) => (
         <div
           key={row.id}
-          className={`grid grid-cols-4 py-2 px-2 border-b border-bm-border/30 text-[8px] ${row.user_id === myUserId ? 'bg-bm-accent/10' : ''}`}
+          style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px', whiteSpace: 'nowrap' }}
+          className={`border-b border-bm-border/30 text-[8px] ${row.user_id === myUserId ? 'bg-bm-accent/10' : ''}`}
         >
-          <span className="text-gray-500">{i + 1}</span>
-          <span className={row.user_id === myUserId ? 'text-bm-accent' : ''}>
+          <span style={{ width: '28px', flexShrink: 0 }} className="text-gray-500">{i + 1}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }} className={row.user_id === myUserId ? 'text-bm-accent' : ''}>
             {i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}
             {row.display_name?.substring(0, 10)}
           </span>
-          <span className="text-right text-bm-yellow">{String(row.score || 0).padStart(6, '0')}</span>
-          <span className="text-right text-bm-green">{row.level_reached || 1}</span>
+          <span style={{ width: '64px', flexShrink: 0, textAlign: 'right' }} className="text-bm-yellow">{String(row.score || 0).padStart(6, '0')}</span>
+          <span style={{ width: '36px', flexShrink: 0, textAlign: 'right' }} className="text-bm-green">{row.level_reached || 1}</span>
         </div>
       ))}
     </div>

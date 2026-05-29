@@ -65,27 +65,15 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       // Carry forward powerups EXCEPT remote, wallpass, bombpass (these reset each level)
       playerInState.powerups = (prevPlayer.powerups || []).filter(p => !resetPowerups.includes(p))
     } else {
-      // First load: try to read from Supabase user_metadata campaign
-      const campaign = user?.user_metadata?.campaign || {}
-      const levelStats = campaign.levelStats || {}
-      const stats = levelStats[level] // Load snapshot for this specific level
-
-      if (stats) {
-        playerInState.score = stats.score || 0
-        playerInState.lives = stats.lives || 3
-        playerInState.maxBombs = stats.maxBombs || 1
-        playerInState.fireRange = stats.fireRange || 1
-        playerInState.speed = stats.speed || 8
-        playerInState.powerups = (stats.powerups || []).filter(p => !resetPowerups.includes(p))
-      } else {
-        // Base stats if no snapshot exists (e.g. Level 1 or fresh account)
-        playerInState.score = 0
-        playerInState.lives = 3
-        playerInState.maxBombs = 1
-        playerInState.fireRange = 1
-        playerInState.speed = 8
-        playerInState.powerups = []
-      }
+      // First load from level select: always start with 3 lives.
+      // Snapshot stats (score, powerups, etc.) are only used during sequential play (prevPlayer path above).
+      // When replaying a stage from level select, start fresh.
+      playerInState.score = 0
+      playerInState.lives = 3
+      playerInState.maxBombs = 1
+      playerInState.fireRange = 1
+      playerInState.speed = 8
+      playerInState.powerups = []
     }
     playerInState.startX = playerSpawn.x
     playerInState.startY = playerSpawn.y

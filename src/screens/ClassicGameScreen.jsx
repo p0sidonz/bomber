@@ -12,7 +12,7 @@ import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50 // ms per game tick (20 tps)
-const DEBUG = false // set to false to hide debug buttons
+const DEBUG = true // set to false to hide debug buttons
 
 const PW_COLORS_CSS = {
   extrabomb: '#f0c040', fireup: '#ff4400', speedup: '#40ff40',
@@ -521,6 +521,11 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
                       s.grid[y][x] = 0 // EMPTY
                       s.powerupsOnMap.push({ x, y, type: s.powerupType || 'extrabomb' })
                       s.hiddenPowerupTile = null
+                    // Reveal egg if hidden here
+                    } else if (s.hiddenEggTile && s.hiddenEggTile[0] === x && s.hiddenEggTile[1] === y) {
+                      s.grid[y][x] = 0 // EMPTY
+                      s.powerupsOnMap.push({ x, y, type: 'egg' })
+                      s.hiddenEggTile = null
                     } else {
                       s.grid[y][x] = 0 // EMPTY
                     }

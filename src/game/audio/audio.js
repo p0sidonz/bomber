@@ -32,8 +32,9 @@ function playTone(freq, type, duration, gainVal = 0.3, startTime = 0) {
   osc.stop(t + duration)
 }
 
-function playNoise(duration, gainVal = 0.2, filterFreq = 0) {
+function playNoise(duration, gainVal = 0.2, filterFreq = 0, startTime = 0) {
   const c = getCtx()
+  const t = c.currentTime + startTime
   const bufferSize = Math.floor(c.sampleRate * duration)
   const buffer = c.createBuffer(1, bufferSize, c.sampleRate)
   const data = buffer.getChannelData(0)
@@ -41,8 +42,8 @@ function playNoise(duration, gainVal = 0.2, filterFreq = 0) {
   const source = c.createBufferSource()
   source.buffer = buffer
   const gain = c.createGain()
-  gain.gain.setValueAtTime(gainVal, c.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration)
+  gain.gain.setValueAtTime(gainVal, t)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration)
 
   if (filterFreq > 0) {
     const filter = c.createBiquadFilter()
@@ -55,144 +56,63 @@ function playNoise(duration, gainVal = 0.2, filterFreq = 0) {
   }
 
   gain.connect(masterGain)
-  source.start()
-  source.stop(c.currentTime + duration)
+  source.start(t)
+  source.stop(t + duration)
 }
 
-function playSweep(startFreq, endFreq, type, duration, gainVal = 0.3) {
+function playSweep(startFreq, endFreq, type, duration, gainVal = 0.3, startTime = 0) {
   const c = getCtx()
+  const t = c.currentTime + startTime
   const osc = c.createOscillator()
   const gain = c.createGain()
   osc.type = type
-  osc.frequency.setValueAtTime(startFreq, c.currentTime)
-  osc.frequency.exponentialRampToValueAtTime(endFreq, c.currentTime + duration)
-  gain.gain.setValueAtTime(gainVal, c.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration)
+  osc.frequency.setValueAtTime(startFreq, t)
+  osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), t + duration)
+  gain.gain.setValueAtTime(gainVal, t)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration)
   osc.connect(gain)
   gain.connect(masterGain)
-  osc.start()
-  osc.stop(c.currentTime + duration)
+  osc.start(t)
+  osc.stop(t + duration)
 }
 
 // ─── SOUND EFFECTS ────────────────────────────────────────────────────────────
 
 export const sfx = {
   walk() {
-    // Quick snappy footstep tick
-    const pitch = Math.random() > 0.5 ? 250 : 300
-    playTone(pitch, 'sine', 0.025, 0.12)
+    // Crisp 8-bit footstep click
+    playNoise(0.015, 0.08, 1500)
+    playSweep(400, 200, 'square', 0.02, 0.05)
   },
 
   bombPlant() {
-    // Satisfying "thunk" — metallic drop
-    playTone(100, 'sine', 0.15, 0.35)
-    playTone(65, 'triangle', 0.1, 0.25, 0.02)
-    playNoise(0.05, 0.12, 600)
+    // Classic retro "Bloop-Thud"
+    playSweep(600, 150, 'sine', 0.1, 0.4)
+    playTone(80, 'square', 0.15, 0.2, 0.05)
+    playNoise(0.05, 0.15, 1000)
   },
 
   explosion() {
-    const c = getCtx()
-    const now = c.currentTime
+    // 8-bit Retro Explosion! Crunchy noise + descending square wave
+    
+    // LAYER 1: The crunch (filtered white noise)
+    playNoise(0.4, 0.5, 2000) // sharp initial blast
+    playNoise(0.8, 0.3, 800)  // lingering rumble
+    
+    // LAYER 2: The classic "pew" sweep downwards
+    playSweep(400, 40, 'square', 0.4, 0.4)
+    playSweep(200, 20, 'sawtooth', 0.6, 0.4)
 
-    // ── LAYER 1: Initial transient CRACK (the snap of the blast) ──
-    const crackBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.05), c.sampleRate)
-    const crackData = crackBuf.getChannelData(0)
-    for (let i = 0; i < crackData.length; i++) {
-      crackData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (c.sampleRate * 0.008))
-    }
-    const crackSrc = c.createBufferSource()
-    crackSrc.buffer = crackBuf
-    const crackGain = c.createGain()
-    crackGain.gain.setValueAtTime(0.5, now)
-    crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
-    const crackFilter = c.createBiquadFilter()
-    crackFilter.type = 'highpass'
-    crackFilter.frequency.value = 800
-    crackSrc.connect(crackFilter)
-    crackFilter.connect(crackGain)
-    crackGain.connect(masterGain)
-    crackSrc.start(now)
-    crackSrc.stop(now + 0.05)
-
-    // ── LAYER 2: Deep bass THUMP (the impact) ──
-    const bassOsc = c.createOscillator()
-    bassOsc.type = 'sine'
-    bassOsc.frequency.setValueAtTime(150, now)
-    bassOsc.frequency.exponentialRampToValueAtTime(30, now + 0.25)
-    const bassGain = c.createGain()
-    bassGain.gain.setValueAtTime(0.6, now)
-    bassGain.gain.setValueAtTime(0.5, now + 0.02)
-    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
-    bassOsc.connect(bassGain)
-    bassGain.connect(masterGain)
-    bassOsc.start(now)
-    bassOsc.stop(now + 0.35)
-
-    // ── LAYER 3: Mid-range BODY (the rumble/roar) ──
-    const bodyBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.4), c.sampleRate)
-    const bodyData = bodyBuf.getChannelData(0)
-    for (let i = 0; i < bodyData.length; i++) {
-      bodyData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (c.sampleRate * 0.15))
-    }
-    const bodySrc = c.createBufferSource()
-    bodySrc.buffer = bodyBuf
-    const bodyGain = c.createGain()
-    bodyGain.gain.setValueAtTime(0.35, now + 0.01)
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
-    const bodyFilter = c.createBiquadFilter()
-    bodyFilter.type = 'lowpass'
-    bodyFilter.frequency.setValueAtTime(1200, now)
-    bodyFilter.frequency.exponentialRampToValueAtTime(200, now + 0.4)
-    bodySrc.connect(bodyFilter)
-    bodyFilter.connect(bodyGain)
-    bodyGain.connect(masterGain)
-    bodySrc.start(now + 0.01)
-    bodySrc.stop(now + 0.4)
-
-    // ── LAYER 4: Sub-bass punch (feel the boom) ──
-    const subOsc = c.createOscillator()
-    subOsc.type = 'sine'
-    subOsc.frequency.setValueAtTime(80, now)
-    subOsc.frequency.exponentialRampToValueAtTime(20, now + 0.3)
-    const subGain = c.createGain()
-    subGain.gain.setValueAtTime(0.4, now)
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
-    subOsc.connect(subGain)
-    subGain.connect(masterGain)
-    subOsc.start(now)
-    subOsc.stop(now + 0.3)
-
-    // ── LAYER 5: Debris/crackle tail ──
-    const debrisBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.3), c.sampleRate)
-    const debrisData = debrisBuf.getChannelData(0)
-    for (let i = 0; i < debrisData.length; i++) {
-      // Sparse crackle — random pops
-      debrisData[i] = Math.random() < 0.05 ? (Math.random() * 2 - 1) * 0.8 : 0
-    }
-    const debrisSrc = c.createBufferSource()
-    debrisSrc.buffer = debrisBuf
-    const debrisGain = c.createGain()
-    debrisGain.gain.setValueAtTime(0.15, now + 0.1)
-    debrisGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
-    const debrisFilter = c.createBiquadFilter()
-    debrisFilter.type = 'bandpass'
-    debrisFilter.frequency.value = 3000
-    debrisFilter.Q.value = 0.5
-    debrisSrc.connect(debrisFilter)
-    debrisFilter.connect(debrisGain)
-    debrisGain.connect(masterGain)
-    debrisSrc.start(now + 0.1)
-    debrisSrc.stop(now + 0.5)
+    // LAYER 3: Sub-thud
+    playSweep(100, 10, 'sine', 0.5, 0.6)
   },
 
   powerupCollect() {
-    // Bright shimmery ascending chime: C-E-G-C
-    playTone(523, 'sine', 0.12, 0.25, 0)
-    playTone(659, 'sine', 0.12, 0.25, 0.08)
-    playTone(784, 'sine', 0.12, 0.3, 0.16)
-    playTone(1047, 'sine', 0.2, 0.35, 0.24)
-    // Sparkle
-    playTone(2093, 'sine', 0.08, 0.08, 0.3)
+    // Super fast arcade magical sweep!
+    playSweep(400, 1200, 'square', 0.15, 0.2)
+    playSweep(600, 1600, 'square', 0.15, 0.2, 0.1) // delayed harmony
+    playTone(1600, 'sine', 0.2, 0.3, 0.15)
+    playTone(2000, 'sine', 0.3, 0.2, 0.15)
   },
 
   skullCollect() {
@@ -204,62 +124,61 @@ export const sfx = {
   },
 
   playerDeath() {
-    // Dramatic death — descending wail + impact
-    playSweep(800, 80, 'sawtooth', 0.6, 0.35)
-    playSweep(600, 50, 'square', 0.8, 0.2)
-    playNoise(0.4, 0.2, 400)
-    // Final low thud
-    playTone(40, 'sine', 0.5, 0.3, 0.3)
-    playTone(30, 'sine', 0.4, 0.2, 0.5)
+    // Retro flutter death: descending rapid arpeggio
+    const notes = [600, 500, 400, 300, 450, 350, 250, 150, 300, 200, 100, 50]
+    for (let i = 0; i < notes.length; i++) {
+      playSweep(notes[i], notes[i]*0.8, 'sawtooth', 0.1, 0.3, i * 0.08)
+    }
+    // Impact explosion at the end
+    playNoise(0.5, 0.3, 500, notes.length * 0.08)
+    playSweep(100, 20, 'square', 0.5, 0.4, notes.length * 0.08)
   },
 
   enemyDeath() {
-    // Quick pop + squish
-    playTone(400, 'sine', 0.08, 0.25)
-    playSweep(500, 100, 'triangle', 0.15, 0.2)
-    playNoise(0.08, 0.1, 1200)
+    // 8-bit squish / poof
+    playSweep(600, 50, 'sawtooth', 0.2, 0.3)
+    playNoise(0.15, 0.2, 800)
   },
 
   levelClear() {
-    // Triumphant fanfare — C-E-G-C with harmonics
-    playTone(262, 'triangle', 0.2, 0.3, 0)
-    playTone(330, 'triangle', 0.2, 0.3, 0.15)
-    playTone(392, 'triangle', 0.2, 0.35, 0.3)
-    playTone(523, 'triangle', 0.4, 0.4, 0.45)
-    // Harmony layer
-    playTone(392, 'sine', 0.3, 0.15, 0.45)
-    playTone(659, 'sine', 0.3, 0.15, 0.45)
-    // Sparkle finish
-    playTone(1047, 'sine', 0.15, 0.1, 0.7)
-    playTone(1319, 'sine', 0.15, 0.08, 0.8)
+    // 8-bit Victory Fanfare
+    const notes = [262, 330, 392, 523, 392, 523] // C E G C G C!
+    const times = [0, 0.1, 0.2, 0.3, 0.45, 0.6]
+    for (let i = 0; i < notes.length; i++) {
+      playTone(notes[i], 'square', 0.15, 0.25, times[i])
+      playTone(notes[i] * 1.01, 'square', 0.15, 0.25, times[i]) // chorus
+    }
   },
 
   gateOpen() {
-    // Magical rising shimmer
-    playSweep(200, 800, 'sine', 0.5, 0.25)
-    playSweep(300, 1200, 'triangle', 0.4, 0.1)
-    playTone(800, 'sine', 0.2, 0.15, 0.3)
+    // Classic Zelda-esque "Secret Revealed" chime
+    const notes = [440, 493, 554, 622, 659, 739, 830, 880]
+    for (let i = 0; i < notes.length; i++) {
+      playTone(notes[i], 'square', 0.1, 0.2, i * 0.05)
+    }
   },
 
   timerWarning() {
-    // Urgent beep-beep
-    playTone(880, 'square', 0.08, 0.2)
-    playTone(880, 'square', 0.08, 0.2, 0.12)
+    // Urgent, shrill 8-bit alarm
+    playTone(1000, 'square', 0.1, 0.3)
+    playTone(1000, 'square', 0.1, 0.3, 0.15)
   },
 
   gameStart() {
-    // Arcade start jingle
-    playTone(440, 'triangle', 0.1, 0.3, 0)
-    playTone(554, 'triangle', 0.1, 0.3, 0.1)
-    playTone(659, 'triangle', 0.15, 0.35, 0.2)
-    playTone(880, 'triangle', 0.3, 0.4, 0.35)
+    // Fast "Get Ready" jingle
+    const notes = [523, 659, 783, 1046]
+    for (let i = 0; i < notes.length; i++) {
+      playTone(notes[i], 'square', 0.1, 0.2, i * 0.1)
+    }
+    playTone(1046, 'square', 0.4, 0.2, 0.4)
   },
 
   teleport() {
-    // Wooshy warp
-    playSweep(200, 1600, 'sine', 0.3, 0.2)
-    playSweep(1600, 200, 'sine', 0.3, 0.15)
-    playNoise(0.15, 0.08, 3000)
+    // Retro warp tunnel
+    for (let i = 0; i < 10; i++) {
+      playSweep(200 + i*50, 600 + i*50, 'sawtooth', 0.05, 0.2, i * 0.05)
+    }
+    playNoise(0.5, 0.15, 2000)
   },
 
   kick() {
@@ -278,27 +197,54 @@ export const sfx = {
 
 // ─── BACKGROUND MUSIC ─────────────────────────────────────────────────────────
 const BGM_TRACKS = {
-  world1: {
-    // Upbeat chiptune — C major bouncy
-    notes: [262, 330, 392, 330, 262, 294, 349, 294, 262, 330, 392, 523, 494, 440, 392, 330],
-    bass:  [131, 131, 196, 196, 131, 131, 175, 175, 131, 131, 196, 262, 247, 220, 196, 165],
-    tempo: 200,
-    type: 'triangle',
+  world1: { // Upbeat Arcade Groove (C minor)
+    notes: [
+      262, 0, 311, 0, 349, 0, 392, 0, 466, 0, 392, 0, 349, 311, 262, 0,
+      262, 0, 311, 0, 349, 0, 369, 392, 523, 0, 466, 0, 392, 0, 311, 294
+    ],
+    bass: [
+      131, 0, 131, 0, 131, 0, 131, 0, 155, 0, 155, 0, 174, 0, 174, 0,
+      131, 0, 131, 0, 131, 0, 131, 0, 116, 0, 116, 0, 131, 0, 0,   0
+    ],
+    drums: [
+      1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 1,
+      1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1, 1, 2, 3
+    ],
+    tempo: 480, // steps per minute
+    type: 'square'
   },
-  world2: {
-    // Tense minor
-    notes: [220, 262, 247, 220, 196, 220, 262, 294, 262, 220, 196, 185, 196, 220, 247, 220],
-    bass:  [110, 131, 124, 110, 98,  110, 131, 147, 131, 110, 98,  93,  98,  110, 124, 110],
-    tempo: 220,
-    type: 'square',
+  world2: { // Tense stealthy beat (A minor)
+    notes: [
+      440, 0, 493, 523, 0, 493, 440, 0, 392, 0, 440, 0, 329, 0, 0, 0,
+      440, 0, 493, 523, 0, 587, 659, 0, 783, 0, 659, 0, 523, 0, 493, 0
+    ],
+    bass: [
+      110, 110, 0, 110, 110, 0, 110, 0, 98, 98, 0, 98, 98, 0, 98, 0,
+      110, 110, 0, 110, 110, 0, 110, 0, 130, 130, 0, 130, 98, 0, 104, 0
+    ],
+    drums: [
+      1, 0, 3, 0, 2, 0, 3, 0, 1, 0, 3, 0, 2, 0, 3, 0,
+      1, 0, 3, 0, 2, 0, 3, 0, 1, 0, 3, 0, 2, 0, 3, 3
+    ],
+    tempo: 440,
+    type: 'sawtooth'
   },
-  boss: {
-    // Urgent driving beat
-    notes: [196, 233, 262, 233, 196, 175, 196, 262, 294, 262, 233, 196, 175, 165, 175, 196],
-    bass:  [98,  117, 131, 117, 98,  88,  98,  131, 147, 131, 117, 98,  88,  83,  88,  98],
-    tempo: 260,
-    type: 'square',
-  },
+  boss: { // Intense driving boss theme
+    notes: [
+      196, 196, 233, 196, 262, 196, 294, 262, 196, 196, 233, 196, 311, 0, 294, 0,
+      196, 196, 233, 196, 262, 196, 294, 262, 392, 0, 349, 0, 311, 294, 262, 233
+    ],
+    bass: [
+      98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 104, 104, 110, 110,
+      98, 98, 98, 98, 98, 98, 98, 98, 116, 116, 116, 116, 130, 130, 146, 146
+    ],
+    drums: [
+      1, 3, 1, 3, 2, 3, 1, 3, 1, 3, 1, 3, 2, 3, 1, 3,
+      1, 3, 1, 3, 2, 3, 1, 3, 1, 3, 1, 3, 2, 3, 3, 3
+    ],
+    tempo: 520,
+    type: 'square'
+  }
 }
 
 let bgmFast = false
@@ -319,33 +265,59 @@ export function playBGM(track, fast = false) {
     if (!bgmPlaying) return
     const note = t.notes[i % t.notes.length]
     const bassNote = t.bass ? t.bass[i % t.bass.length] : null
+    const drum = t.drums ? t.drums[i % t.drums.length] : 0
 
-    // Melody
-    const osc = c.createOscillator()
-    const gain = c.createGain()
-    osc.type = t.type
-    osc.frequency.value = note
-    gain.gain.setValueAtTime(0.1, c.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + beatLen * 0.85)
-    osc.connect(gain)
-    gain.connect(masterGain)
-    osc.start(c.currentTime)
-    osc.stop(c.currentTime + beatLen)
-    bgmOscillators.push(osc)
+    // Melody (Dual oscillator for chorus effect)
+    if (note > 0) {
+      const gain = c.createGain()
+      gain.gain.setValueAtTime(0, c.currentTime)
+      gain.gain.linearRampToValueAtTime(0.08, c.currentTime + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + beatLen * 0.8)
+      gain.connect(masterGain)
+
+      const osc1 = c.createOscillator()
+      osc1.type = t.type
+      osc1.frequency.value = note
+      osc1.connect(gain)
+      osc1.start(c.currentTime)
+      osc1.stop(c.currentTime + beatLen)
+      bgmOscillators.push(osc1)
+
+      const osc2 = c.createOscillator()
+      osc2.type = t.type
+      osc2.frequency.value = note * 1.008 // slightly detuned for thickness
+      osc2.connect(gain)
+      osc2.start(c.currentTime)
+      osc2.stop(c.currentTime + beatLen)
+      bgmOscillators.push(osc2)
+    }
 
     // Bass line
-    if (bassNote) {
+    if (bassNote > 0) {
       const bassOsc = c.createOscillator()
       const bassGain = c.createGain()
-      bassOsc.type = 'sine'
+      bassOsc.type = 'triangle' // much punchier for bass
       bassOsc.frequency.value = bassNote
-      bassGain.gain.setValueAtTime(0.07, c.currentTime)
+      bassGain.gain.setValueAtTime(0.2, c.currentTime)
       bassGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + beatLen * 0.9)
       bassOsc.connect(bassGain)
       bassGain.connect(masterGain)
       bassOsc.start(c.currentTime)
       bassOsc.stop(c.currentTime + beatLen)
       bgmOscillators.push(bassOsc)
+    }
+
+    // Drums
+    if (drum > 0) {
+      if (drum === 1) { // Kick
+        playTone(150, 'sine', 0.1, 0.25, 0)
+        playNoise(0.05, 0.15, 400)
+      } else if (drum === 2) { // Snare
+        playTone(200, 'triangle', 0.1, 0.15, 0)
+        playNoise(0.15, 0.25, 1500)
+      } else if (drum === 3) { // Hi-hat
+        playNoise(0.05, 0.08, 6000)
+      }
     }
 
     i++

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, onAuthChange } from './supabase'
+import { supabase, onAuthChange, getCampaignProgress } from './supabase'
 import AuthScreen from './screens/AuthScreen'
 import LandingScreen from './screens/LandingScreen'
 import LobbyScreen from './screens/LobbyScreen'
@@ -25,6 +25,15 @@ export default function App() {
   const [room, setRoom] = useState(null)
   const [gameResult, setGameResult] = useState(null)
   const [level, setLevel] = useState(1)
+  const [campaign, setCampaign] = useState({})
+
+  useEffect(() => {
+    if (user) {
+      getCampaignProgress(user.id).then(setCampaign).catch(console.error)
+    } else {
+      setCampaign({})
+    }
+  }, [user])
 
   useEffect(() => {
     initializeAdMob()
@@ -84,8 +93,8 @@ export default function App() {
   if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
   if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
   if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
-  if (screen === 'level_select') return <LevelSelectScreen user={user} nav={nav} />
-  if (screen === 'classic') return <ClassicGameScreen user={user} startingLevel={level} nav={nav} />
+  if (screen === 'level_select') return <LevelSelectScreen user={user} campaign={campaign} nav={nav} />
+  if (screen === 'classic') return <ClassicGameScreen user={user} campaign={campaign} setCampaign={setCampaign} startingLevel={level} nav={nav} />
   if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />
   if (screen === 'countdown') return <CountdownScreen room={room} nav={nav} />
   if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />

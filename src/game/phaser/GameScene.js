@@ -21,6 +21,8 @@ const ENEMY_HEX = {
   Rocky: 0x707080, Smoky: 0xb0b0b0, Ghost: 0xc0d0f0,
   Blaze: 0xff5500, Titan: 0x604090, Mimic: 0x40a080,
   Skuller: 0x4020a0, BossBomb: 0xaa0020,
+  Charger: 0xcc2222, Slime: 0x30cc60, MiniSlime: 0x66ff99, Hopper: 0x20aa50,
+  Dragon: 0xff6600,
 }
 
 const PW_HEX = {
@@ -29,12 +31,14 @@ const PW_HEX = {
   wallpass: 0xaaffaa, fullfire: 0xff2200, skull: 0xaa0000,
   clock: 0x00ccff, mystery: 0xff00ff, gatebomb: 0xffaa00,
   shield: 0x4488ff, decoy: 0xff88ff, blockitem: 0x888888, swap: 0x00ffcc,
+  egg: 0xffddaa,
 }
 
 const PW_ICONS = {
   extrabomb: 'B', fireup: 'F', speedup: 'S', kick: 'K', remote: 'R',
   bombpass: 'P', wallpass: 'W', fullfire: 'X', skull: '!', clock: 'T',
   mystery: '?', gatebomb: 'G', shield: '[', decoy: 'D', blockitem: '#', swap: '@',
+  egg: 'O',
 }
 
 // Helper: darken a hex color by factor (0-1)
@@ -680,6 +684,19 @@ export default class GameScene extends Phaser.Scene {
       case 'Blaze':
         this._drawBlaze(gfx, color, bob, enemy)
         break
+      case 'Charger':
+        this._drawCharger(gfx, color, bob, enemy)
+        break
+      case 'Slime':
+      case 'MiniSlime':
+        this._drawSlime(gfx, color, bob, enemy)
+        break
+      case 'Hopper':
+        this._drawHopper(gfx, color, bob, enemy)
+        break
+      case 'Dragon':
+        this._drawDragon(gfx, color, bob, enemy)
+        break
       default:
         this._drawDefaultEnemy(gfx, color, bob, enemy)
         break
@@ -692,6 +709,99 @@ export default class GameScene extends Phaser.Scene {
       gfx.fillStyle(0xee2222)
       gfx.fillRoundedRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5, 2)
     }
+  }
+
+  // ── CHARGER: Bull-like horns, glows when charging ──
+  _drawCharger(gfx, color, bob, enemy) {
+    const isCharging = enemy.isCharging
+    const bodyColor = isCharging ? 0xff4444 : color
+    
+    // Bulky body
+    gfx.fillStyle(bodyColor)
+    gfx.fillRoundedRect(-14, -14 - bob, 28, 28, 6)
+    
+    // Horns
+    gfx.fillStyle(0xddddcc)
+    // Left horn
+    gfx.fillTriangle(-12, -10 - bob, -20, -18 - bob, -8, -14 - bob)
+    // Right horn
+    gfx.fillTriangle(12, -10 - bob, 20, -18 - bob, 8, -14 - bob)
+
+    // Angry eyes
+    gfx.fillStyle(isCharging ? 0xffff00 : 0x222222)
+    gfx.fillEllipse(-5, -2 - bob, 6, 4)
+    gfx.fillEllipse(5, -2 - bob, 6, 4)
+    gfx.fillStyle(0x000000)
+    gfx.fillCircle(-5, -2 - bob, 1)
+    gfx.fillCircle(5, -2 - bob, 1)
+  }
+
+  // ── SLIME & MINISLIME: Gooey blob shape ──
+  _drawSlime(gfx, color, bob, enemy) {
+    const scale = enemy.type === 'MiniSlime' ? 0.6 : 1
+    
+    gfx.fillStyle(color)
+    // Bottom wide base
+    gfx.fillEllipse(0, 10 - bob, 24 * scale, 12 * scale)
+    // Top blob
+    gfx.fillEllipse(0, 2 - bob, 18 * scale, 16 * scale)
+
+    // Droopy eyes
+    gfx.fillStyle(0x000000)
+    gfx.fillCircle(-4 * scale, 2 - bob, 3 * scale)
+    gfx.fillCircle(4 * scale, 2 - bob, 3 * scale)
+  }
+
+  // ── HOPPER: Frog-like legs ──
+  _drawHopper(gfx, color, bob, enemy) {
+    // Legs (jump up if bobbing)
+    gfx.fillStyle(0x118833)
+    const legY = bob === 0 ? 12 : 6
+    gfx.fillEllipse(-12, legY, 8, 12)
+    gfx.fillEllipse(12, legY, 8, 12)
+
+    // Round body
+    gfx.fillStyle(color)
+    gfx.fillCircle(0, 0 - bob * 2, 14)
+
+    // Big eyes on top
+    gfx.fillStyle(0xffffff)
+    gfx.fillCircle(-8, -10 - bob * 2, 6)
+    gfx.fillCircle(8, -10 - bob * 2, 6)
+    gfx.fillStyle(0x000000)
+    gfx.fillCircle(-8, -10 - bob * 2, 2)
+    gfx.fillCircle(8, -10 - bob * 2, 2)
+  }
+
+  // ── DRAGON: Long snout and scales ──
+  _drawDragon(gfx, color, bob, enemy) {
+    const isFiring = enemy.moveTimer < 0
+    const bodyColor = isFiring ? 0xffff00 : color // flashes yellow when firing
+
+    // Body
+    gfx.fillStyle(bodyColor)
+    gfx.fillRoundedRect(-14, -10 - bob, 28, 24, 8)
+    
+    // Snout
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillRoundedRect(-8, -4 - bob, 16, 14, 4)
+    
+    // Nostrils
+    gfx.fillStyle(0x220000)
+    gfx.fillCircle(-4, 4 - bob, 2)
+    gfx.fillCircle(4, 4 - bob, 2)
+
+    // Eyes
+    gfx.fillStyle(0xffffaa)
+    gfx.fillEllipse(-8, -8 - bob, 6, 8)
+    gfx.fillEllipse(8, -8 - bob, 6, 8)
+    gfx.fillStyle(0x000000)
+    gfx.fillCircle(-8, -8 - bob, 2)
+    gfx.fillCircle(8, -8 - bob, 2)
+    
+    // Scales/Spikes on back
+    gfx.fillStyle(0xffaa00)
+    gfx.fillTriangle(-4, -10 - bob, 4, -10 - bob, 0, -16 - bob)
   }
 
   // ── BALLOM: Cute bouncing slime blob ──

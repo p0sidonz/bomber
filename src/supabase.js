@@ -151,13 +151,33 @@ export async function upsertGameState(roomId, tick, state) {
   if (error) throw error
 }
 
+export async function getCampaignProgress(userId) {
+  if (!userId) return {}
+  const { data, error } = await supabase
+    .from('campaign_progress')
+    .select('campaign_data')
+    .eq('user_id', userId)
+    .maybeSingle()
+    
+  if (error) {
+    console.error('Error fetching campaign:', error)
+    return {}
+  }
+  return data?.campaign_data || {}
+}
+
 export async function saveCampaignProgress(campaignData) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return // Guests do not save progress
 
-  const { error } = await supabase.auth.updateUser({
-    data: { campaign: campaignData }
-  })
+  const { error } = await supabase
+    .from('campaign_progress')
+    .upsert({ 
+      user_id: session.user.id, 
+      campaign_data: campaignData,
+      updated_at: new Date().toISOString()
+    })
+    
   if (error) throw error
 }
 

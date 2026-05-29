@@ -115,6 +115,12 @@ export function detonateBomb(state, bombId) {
             state.hiddenPowerupTile = null
           }
         }
+        if (state.hiddenEggTile && state.hiddenEggTile[0] === ex && state.hiddenEggTile[1] === ey) {
+          if (state.grid[ey][ex] !== TILE.GATE) {
+            state.powerupsOnMap.push({ x: ex, y: ey, type: 'egg' })
+            state.hiddenEggTile = null
+          }
+        }
       } else {
         // Multiplayer: fewer powerups, only core types
         if (Math.random() < 0.18) {
@@ -165,6 +171,47 @@ export function detonateBomb(state, bombId) {
     const ety = Math.floor((enemy.py + 24) / 48)
     if (explosionPositions.has(`${etx},${ety}`)) {
       damageEnemy(state, enemy, bomb.ownerId)
+    }
+  }
+
+  // Destroy powerups caught in explosion
+  if (state.powerupsOnMap) {
+    state.powerupsOnMap = state.powerupsOnMap.filter(p => {
+      const hit = explosionPositions.has(`${p.x},${p.y}`)
+      if (hit) {
+        if (p.type === 'egg') crackEgg(state, p.x, p.y)
+        return false // remove it
+      }
+      return true
+    })
+  }
+}
+
+function crackEgg(state, x, y) {
+  const event = Math.random()
+  if (event < 0.33) {
+    // Jackpot: +1 Life
+    for (const player of Object.values(state.players)) {
+      if (player.alive) player.lives = Math.min(6, (player.lives || 3) + 1)
+    }
+  } else if (event < 0.66) {
+    // Treasure: +2000 Points
+    for (const player of Object.values(state.players)) {
+      if (player.alive) player.score = (player.score || 0) + 2000
+    }
+  } else {
+    // Ambush: 3 MiniSlimes
+    state.enemies = state.enemies || []
+    for (let i = 0; i < 3; i++) {
+      state.enemies.push({
+        id: `egg-slime-${state.tick}-${i}`,
+        type: 'MiniSlime',
+        x: x, y: y,
+        px: x * 48 + (Math.random() * 20 - 10), 
+        py: y * 48 + (Math.random() * 20 - 10),
+        alive: true, speed: 4, ai: 'chase_loose', hp: 1, points: 500,
+        passAll: false, passWalls: false
+      })
     }
   }
 }
@@ -263,6 +310,33 @@ export function damageEnemy(state, enemy, killerId) {
         y: enemy.y,
         type: pwTypes[Math.floor(Math.random() * pwTypes.length)],
       })
+    }
+
+    // Slime splitting logic
+    if (enemy.splits) {
+      // Create two MiniSlimes slightly offset from the parent
+      const newEnemies = [
+        { offsetX: -16, offsetY: -16, suffix: 'a' },
+        { offsetX: 16, offsetY: 16, suffix: 'b' }
+      ]
+      
+      for (const ne of newEnemies) {
+        state.enemies.push({
+          id: `${enemy.id}-split-${ne.suffix}`,
+          type: 'MiniSlime',
+          x: enemy.x,
+          y: enemy.y,
+          px: enemy.px + ne.offsetX,
+          py: enemy.py + ne.offsetY,
+          alive: true,
+          speed: 4,
+          ai: 'chase_loose',
+          hp: 1,
+          points: 500,
+          passAll: false,
+          passWalls: false
+        })
+      }
     }
   } else {
     enemy.hitFlash = 6 // flash for 6 frames

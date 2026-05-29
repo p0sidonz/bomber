@@ -22,7 +22,8 @@ export const LEVEL_CONFIGS = Array.from({ length: 50 }, (_, i) => {
 
   const enemyProgression = [
     'Ballom', 'Oneal', 'Dahl', 'Minvo', 'Doria', 'Ovapi', 'Pass', 'Nail',
-    'Zael', 'Coin', 'Hurry', 'Rocky', 'Smoky', 'Pontan', 'Skuller', 'Ghost', 'Blaze', 'Titan', 'Mimic'
+    'Zael', 'Coin', 'Pontan', 'Skuller', 'Hurry', 'Rocky', 'Smoky', 'Ghost', 'Blaze', 'Titan', 'Mimic',
+    'Charger', 'Slime', 'Hopper', 'Dragon'
   ]
   const typesAvailable = Math.min(enemyProgression.length, level)
   const pool = enemyProgression.slice(0, typesAvailable)
@@ -126,6 +127,12 @@ export function generateLevel(level) {
   const pwCandidates = softTiles.filter(t => t[0] !== hiddenGateTile[0] || t[1] !== hiddenGateTile[1])
   const hiddenPowerupTile = pwCandidates[Math.floor(Math.random() * pwCandidates.length)] || [mapCols - 3, mapRows - 2]
 
+  // Hide mystery egg under a DIFFERENT random soft block (50% chance to spawn in a level)
+  const eggCandidates = pwCandidates.filter(t => t[0] !== hiddenPowerupTile[0] || t[1] !== hiddenPowerupTile[1])
+  const hiddenEggTile = (eggCandidates.length > 0 && Math.random() < 0.5) 
+    ? eggCandidates[Math.floor(Math.random() * eggCandidates.length)] 
+    : null
+
   // Place enemies (far from player spawn)
   const enemySpawns = getEnemySpawnPoints(grid)
   const spawnedEnemies = []
@@ -154,6 +161,7 @@ export function generateLevel(level) {
     grid,
     hiddenGateTile,
     hiddenPowerupTile,
+    hiddenEggTile,
     powerupType,
     enemies: spawnedEnemies,
     playerSpawn: { x: 1, y: 1 },
@@ -188,7 +196,7 @@ function getEnemyDefaults(type) {
     Doria:    { speed: 2, ai: 'random', points: 1000, passWalls: false, passAll: false },
     Ovapi:    { speed: 1, ai: 'random', points: 2000, passWalls: false, passAll: false },
     Pass:     { speed: 4, ai: 'random', points: 4000, passWalls: false, passAll: false },
-    Pontan:   { speed: 3, ai: 'random', points: 8000, passWalls: true, passAll: true },
+    Pontan:   { speed: 4, ai: 'chase_loose', points: 8000, passWalls: true, passAll: true },
     Nail:     { speed: 2, ai: 'wall_follower', points: 1600, passWalls: false, passAll: false },
     Zael:     { speed: 2, ai: 'wall_hugger', points: 3200, passWalls: false, passAll: false },
     Coin:     { speed: 1, ai: 'random', points: 6400, passWalls: false, passAll: false, dropsPowerup: true },
@@ -199,8 +207,13 @@ function getEnemyDefaults(type) {
     Blaze:    { speed: 3, ai: 'target_bombs', points: 1600, passWalls: false, passAll: false },
     Titan:    { speed: 1, ai: 'chase_loose', points: 2400, passWalls: false, passAll: false, hp: 2 },
     Mimic:    { speed: 2, ai: 'mimic', points: 2000, passWalls: false, passAll: false },
-    Skuller:  { speed: 4, ai: 'chase_loose', points: 5000, passWalls: true, passAll: true },
+    Skuller:  { speed: 1, ai: 'random', points: 5000, passWalls: true, passAll: true },
     BossBomb: { speed: 2, ai: 'boss', points: 10000, passWalls: false, passAll: false, hp: 5, plantsBombs: true },
+    Charger:  { speed: 1, ai: 'charger', points: 3000, passWalls: false, passAll: false, hp: 1 },
+    Slime:    { speed: 2, ai: 'chase_loose', points: 1500, passWalls: false, passAll: false, splits: true, hp: 1 },
+    MiniSlime:{ speed: 4, ai: 'chase_loose', points: 500, passWalls: false, passAll: false, hp: 1 },
+    Hopper:   { speed: 2, ai: 'hopper', points: 2500, passWalls: false, passAll: false, hp: 1 },
+    Dragon:   { speed: 1, ai: 'dragon', points: 4000, passWalls: false, passAll: false, hp: 1, breathesFire: true },
   }
   return defaults[type] || defaults.Ballom
 }

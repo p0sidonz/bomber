@@ -63,7 +63,10 @@ export function updateEnemies(state) {
       const target = nearestPlayer(enemy.x, enemy.y)
       let nextDir = chooseDir(enemy, state, target)
 
-      const dirs = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] }
+      const dirs = { 
+        up: [0,-1], down: [0,1], left: [-1,0], right: [1,0],
+        jump_up: [0,-2], jump_down: [0,2], jump_left: [-2,0], jump_right: [2,0]
+      }
       if (nextDir && dirs[nextDir]) {
         const [dx, dy] = dirs[nextDir]
         const nx = enemy.x + dx
@@ -100,6 +103,49 @@ export function updateEnemies(state) {
       if (enemy.ai === 'target_bombs') {
         const nearBomb = (state.bombs || []).find(b => Math.abs(b.x - enemy.x) + Math.abs(b.y - enemy.y) <= 2)
         if (nearBomb) nearBomb.fuseTicks = 1
+      }
+      
+      // Mechanic: Leaves Fire Trail
+      if (enemy.leavesFire && Math.random() < 0.25) {
+        state.explosions = state.explosions || []
+        state.explosions.push({
+          x: enemy.x, y: enemy.y,
+          frame: 0, dieTick: state.tick + 10,
+          tiles: [{ pos: [enemy.x, enemy.y], hit: 'empty' }]
+        })
+      }
+      
+      // Mechanic: Plants Bombs
+      if (enemy.plantsBombs && Math.random() < 0.1) {
+        const hasBomb = (state.bombs || []).some(b => b.x === enemy.x && b.y === enemy.y)
+        if (!hasBomb) {
+          state.bombs = state.bombs || []
+          state.bombs.push({
+            id: `ebomb-${state.tick}-${enemy.id}`,
+            x: enemy.x, y: enemy.y,
+            ownerId: 'enemy',
+            fireRange: 2,
+            fuseTicks: 60, // 3 seconds
+            plantedTick: state.tick
+          })
+        }
+      }
+    }
+
+    // ── EVERY TICK: check if destination tile became blocked by a bomb ──
+    // If a bomb was placed on the enemy's target tile after it committed to moving there,
+    // revert the enemy to its current pixel-position tile so it doesn't walk through the bomb.
+    if (!enemy.passAll) {
+      const hasBombOnTarget = bombs && bombs.some(b => b.x === enemy.x && b.y === enemy.y)
+      if (hasBombOnTarget) {
+        // Snap back to the tile the enemy is currently visually on
+        const currentTileX = Math.round(enemy.px / 48)
+        const currentTileY = Math.round(enemy.py / 48)
+        // Only revert if the enemy hasn't already arrived at the bomb tile
+        if (currentTileX !== enemy.x || currentTileY !== enemy.y) {
+          enemy.x = currentTileX
+          enemy.y = currentTileY
+        }
       }
     }
 
@@ -152,14 +198,17 @@ function chooseDir(enemy, state, target) {
   const bombs = state.bombs || []
   switch (enemy.ai) {
     case 'random': return pickRandomDir(enemy, state.grid, state.enemies, bombs)
-    case 'chase_loose': return chaseLoose(enemy, target)
-    case 'turn_toward': return turnToward(enemy, target)
+    case 'chase_loose': return chaseLoose(enemy, target, state.grid, state.enemies, bombs)
+    case 'turn_toward': return turnToward(enemy, target, state.grid, state.enemies, bombs)
     case 'astar': return astar(enemy, target, state.grid, state.enemies, bombs)
     case 'wall_follower': return wallFollow(enemy, state.grid, state.enemies, bombs)
     case 'wall_hugger': return wallHug(enemy, state.grid, state.enemies, bombs)
     case 'mimic': return mimicPlayer(enemy, state)
     case 'boss': return bossAI(enemy, state, target)
-    case 'target_bombs': return chaseLoose(enemy, (state.bombs || [])[0] || target)
+    case 'target_bombs': return chaseLoose(enemy, (state.bombs || [])[0] || target, state.grid, state.enemies, bombs)
+    case 'charger': return chargerAI(enemy, state, target)
+    case 'hopper': return hopperAI(enemy, state, target)
+    case 'dragon': return dragonAI(enemy, state, target)
     default: return pickRandomDir(enemy, state.grid, state.enemies, bombs)
   }
 }
@@ -177,24 +226,43 @@ function pickRandomDir(enemy, grid, enemies, bombs) {
   return dirs[Math.floor(Math.random() * dirs.length)]
 }
 
-function chaseLoose(enemy, target) {
+function chaseLoose(enemy, target, grid, enemies, bombs) {
   if (!target) return null
-  const dx = target.x - enemy.x
-  const dy = target.y - enemy.y
   // 50% chance to move toward player
   if (Math.random() < 0.5) {
-    if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left'
-    return dy > 0 ? 'down' : 'up'
+    return turnToward(enemy, target, grid, enemies, bombs)
   }
   return null // random fallback
 }
 
-function turnToward(enemy, target) {
+function turnToward(enemy, target, grid, enemies, bombs) {
   if (!target) return null
   const dx = target.x - enemy.x
   const dy = target.y - enemy.y
-  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left'
-  return dy > 0 ? 'down' : 'up'
+  
+  const dirs = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] }
+  const primary = Math.abs(dx) > Math.abs(dy) 
+    ? (dx > 0 ? 'right' : 'left') 
+    : (dy > 0 ? 'down' : 'up')
+    
+  const secondary = Math.abs(dx) > Math.abs(dy)
+    ? (dy > 0 ? 'down' : 'up')
+    : (dx > 0 ? 'right' : 'left')
+
+  // Try primary direction
+  const [pdx, pdy] = dirs[primary]
+  if (canEnemyMove(enemy, grid, enemy.x + pdx, enemy.y + pdy, enemies, bombs)) {
+    return primary
+  }
+  
+  // Try secondary direction if primary is blocked
+  const [sdx, sdy] = dirs[secondary]
+  if (canEnemyMove(enemy, grid, enemy.x + sdx, enemy.y + sdy, enemies, bombs)) {
+    return secondary
+  }
+
+  // If both direct paths are blocked, return null to fall back to random wander
+  return null
 }
 
 function astar(enemy, target, grid, enemies, bombs) {
@@ -267,5 +335,136 @@ function bossAI(enemy, state, target) {
     // Plant bomb at current position (handled in enemy update)
     enemy.wantsToPlantBomb = true
   }
-  return turnToward(enemy, target)
+  return turnToward(enemy, target, state.grid, state.enemies, state.bombs)
+}
+
+function chargerAI(enemy, state, target) {
+  if (!target) return null
+  
+  // If already charging, keep charging until hit wall
+  if (enemy.isCharging) {
+    const [dx, dy] = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] }[enemy.dir] || [0,0]
+    if (dx !== 0 || dy !== 0) {
+      if (canEnemyMove(enemy, state.grid, enemy.x + dx, enemy.y + dy, state.enemies, state.bombs)) {
+        return enemy.dir
+      }
+    }
+    // Hit a wall! Stop charging, stun for a sec
+    enemy.isCharging = false
+    enemy.speed = 1
+    return null // stop moving this tick
+  }
+
+  // Check line of sight
+  if (enemy.x === target.x) {
+    const dy = Math.sign(target.y - enemy.y)
+    let clear = true
+    for (let y = enemy.y + dy; y !== target.y; y += dy) {
+      if (!canEnemyMove(enemy, state.grid, enemy.x, y, state.enemies, state.bombs)) clear = false
+    }
+    if (clear) {
+      enemy.isCharging = true
+      enemy.speed = 10
+      return dy > 0 ? 'down' : 'up'
+    }
+  } else if (enemy.y === target.y) {
+    const dx = Math.sign(target.x - enemy.x)
+    let clear = true
+    for (let x = enemy.x + dx; x !== target.x; x += dx) {
+      if (!canEnemyMove(enemy, state.grid, x, enemy.y, state.enemies, state.bombs)) clear = false
+    }
+    if (clear) {
+      enemy.isCharging = true
+      enemy.speed = 10
+      return dx > 0 ? 'right' : 'left'
+    }
+  }
+
+  // Otherwise, wander slowly
+  enemy.speed = 1
+  return pickRandomDir(enemy, state.grid, state.enemies, state.bombs)
+}
+
+function hopperAI(enemy, state, target) {
+  if (!target) return null
+  
+  const dx = target.x - enemy.x
+  const dy = target.y - enemy.y
+  
+  const dirsList = ['up', 'down', 'left', 'right']
+  const prefs = []
+  if (Math.abs(dx) > Math.abs(dy)) {
+    prefs.push(dx > 0 ? 'right' : 'left')
+    prefs.push(dy > 0 ? 'down' : 'up')
+  } else {
+    prefs.push(dy > 0 ? 'down' : 'up')
+    prefs.push(dx > 0 ? 'right' : 'left')
+  }
+
+  const dirsMap = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] }
+  
+  for (const d of prefs) {
+    const [vx, vy] = dirsMap[d]
+    // Can we move normally?
+    if (canEnemyMove(enemy, state.grid, enemy.x + vx, enemy.y + vy, state.enemies, state.bombs)) {
+      return d
+    }
+    // Blocked! Is it a soft block (2)?
+    if (state.grid[enemy.y + vy] && state.grid[enemy.y + vy][enemy.x + vx] === 2) {
+      // Can we land on the other side?
+      if (canEnemyMove(enemy, state.grid, enemy.x + vx * 2, enemy.y + vy * 2, state.enemies, state.bombs)) {
+        return 'jump_' + d
+      }
+    }
+  }
+
+  return pickRandomDir(enemy, state.grid, state.enemies, state.bombs)
+}
+
+function dragonAI(enemy, state, target) {
+  if (!target) return null
+  
+  const dx = Math.sign(target.x - enemy.x)
+  const dy = Math.sign(target.y - enemy.y)
+  
+  if ((dx === 0 || dy === 0) && (dx !== 0 || dy !== 0)) {
+    // Check line of sight
+    let clear = true
+    for (let i = 1; i <= Math.max(Math.abs(target.x - enemy.x), Math.abs(target.y - enemy.y)); i++) {
+      const checkX = enemy.x + dx * i
+      const checkY = enemy.y + dy * i
+      if (state.grid[checkY] && state.grid[checkY][checkX] === 1) { // 1 = SOLID
+        clear = false; break
+      }
+    }
+    if (clear) {
+      enemy.fireTimer = (enemy.fireTimer || 0) + 1
+      if (enemy.fireTimer > 30) {
+        enemy.fireTimer = 0
+        state.explosions = state.explosions || []
+        const tiles = []
+        for(let i = 1; i <= 6; i++) {
+          const fx = enemy.x + dx * i
+          const fy = enemy.y + dy * i
+          if (state.grid[fy] && state.grid[fy][fx] === 1) break // Stop fire at walls
+          tiles.push({ pos: [fx, fy], hit: i === 6 ? 'end' : 'mid' })
+          if (state.grid[fy] && state.grid[fy][fx] === 2) {
+            tiles.push({ pos: [fx, fy], hit: 'end' })
+            break // Stop fire after hitting soft block
+          }
+        }
+        if (tiles.length > 0) {
+          state.explosions.push({
+            x: enemy.x, y: enemy.y,
+            frame: 0, dieTick: state.tick + 15,
+            tiles
+          })
+        }
+      }
+      return null // Don't move while tracking/firing
+    }
+  }
+
+  // Not in LOS, wander towards player slowly
+  return turnToward(enemy, target, state.grid, state.enemies, state.bombs)
 }

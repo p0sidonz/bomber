@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { generateLevel } from '../game/levels/generator.js'
 import { createInitialState } from '../game/engine/state.js'
-import { movePlayer } from '../game/engine/physics.js'
+import { movePlayer, updateSlidingBombs } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups, remoteDetonate } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
@@ -22,7 +22,7 @@ const PW_COLORS_CSS = {
   shield: '#4488ff', decoy: '#ff88ff', blockitem: '#888888', swap: '#00ffcc',
 }
 
-export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
+export default function ClassicGameScreen({ user, campaign, setCampaign, startingLevel = 1, nav }) {
   const stateRef = useRef(null)
   const tickIntervalRef = useRef(null)
   const levelRef = useRef(1)
@@ -65,15 +65,27 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
       // Carry forward powerups EXCEPT remote, wallpass, bombpass (these reset each level)
       playerInState.powerups = (prevPlayer.powerups || []).filter(p => !resetPowerups.includes(p))
     } else {
-      // First load from level select: always start with 3 lives.
-      // Snapshot stats (score, powerups, etc.) are only used during sequential play (prevPlayer path above).
-      // When replaying a stage from level select, start fresh.
-      playerInState.score = 0
-      playerInState.lives = 3
-      playerInState.maxBombs = 1
-      playerInState.fireRange = 1
-      playerInState.speed = 8
-      playerInState.powerups = []
+      // First load from level select: try to load saved stats from campaign.
+      // We ALWAYS start with 3 lives so players don't get stuck with 1 life on replay,
+      // but we do want to load their saved powerups and bomb stats!
+      const levelStats = campaign?.levelStats || {}
+      const stats = levelStats[level]
+
+      if (stats) {
+        playerInState.score = stats.score || 0
+        playerInState.lives = 3 // Always 3 lives for fresh level start!
+        playerInState.maxBombs = stats.maxBombs || 1
+        playerInState.fireRange = stats.fireRange || 1
+        playerInState.speed = stats.speed || 8
+        playerInState.powerups = (stats.powerups || []).filter(p => !resetPowerups.includes(p))
+      } else {
+        playerInState.score = 0
+        playerInState.lives = 3
+        playerInState.maxBombs = 1
+        playerInState.fireRange = 1
+        playerInState.speed = 8
+        playerInState.powerups = []
+      }
     }
     playerInState.startX = playerSpawn.x
     playerInState.startY = playerSpawn.y
@@ -144,6 +156,7 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
     // Update systems
     const enemiesBefore = (state.enemies || []).filter(e => e.alive).length
 
+    updateSlidingBombs(state.bombs, state.grid, state.players)
     updateBombs(state)
     updateExplosions(state)
     checkPowerupPickups(state)
@@ -231,14 +244,14 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
         player.lives = Math.min(6, (player.lives || 3) + 1)
       }
 
-      // Save campaign progress to Supabase (Snapshot Memory)
+      // Save campaign progress to Supabase Database
       const nextLevel = currentLevel + 1
-      const campaign = user?.user_metadata?.campaign || {}
+      const currentCampaign = campaign || {}
       
-      let maxLevel = campaign.maxLevel || 1
+      let maxLevel = currentCampaign.maxLevel || 1
       if (maxLevel < nextLevel) maxLevel = nextLevel
 
-      const levelStats = campaign.levelStats || {}
+      const levelStats = currentCampaign.levelStats || {}
 
       // Only save a snapshot for the next level if they've never reached it before
       if (!levelStats[nextLevel]) {
@@ -252,7 +265,9 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
         }
       }
 
-      saveCampaignProgress({ maxLevel, levelStats })
+      const newCampaign = { maxLevel, levelStats }
+      setCampaign(newCampaign)
+      saveCampaignProgress(newCampaign)
         .catch(err => console.error('Failed to save campaign:', err))
     }
 
@@ -407,7 +422,10 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
             padding: '8px 12px', fontFamily: '"Press Start 2P", monospace',
             fontSize: '10px', cursor: 'pointer', pointerEvents: 'auto'
           }}
-          onClick={() => setOverlay('paused')}
+          onClick={() => {
+            if (stateRef.current) stateRef.current.status = 'paused'
+            setOverlay('paused')
+          }}
         >
           ⏸ PAUSE
         </button>
@@ -435,6 +453,51 @@ export default function ClassicGameScreen({ user, startingLevel = 1, nav }) {
               }
             }}
           >☠ KILL ALL</button>
+          
+          <button
+            style={{
+              padding: '4px 10px', fontSize: '8px',
+              fontFamily: '"Press Start 2P", monospace',
+              background: '#ff4400', color: '#fff', border: 'none',
+              cursor: 'pointer', borderRadius: 4,
+            }}
+            onClick={() => {
+              const s = stateRef.current
+              if (!s) return
+              const p = Object.values(s.players)[0]
+              if (p) p.fireRange = Math.min(8, p.fireRange + 1)
+            }}
+          >+ FIRE RANGE</button>
+          
+          <button
+            style={{
+              padding: '4px 10px', fontSize: '8px',
+              fontFamily: '"Press Start 2P", monospace',
+              background: '#40ff40', color: '#111', border: 'none',
+              cursor: 'pointer', borderRadius: 4,
+            }}
+            onClick={() => {
+              const s = stateRef.current
+              if (!s) return
+              const p = Object.values(s.players)[0]
+              if (p) p.speed = Math.min(12, p.speed + 1)
+            }}
+          >+ SPEED</button>
+
+          <button
+            style={{
+              padding: '4px 10px', fontSize: '8px',
+              fontFamily: '"Press Start 2P", monospace',
+              background: '#f0c040', color: '#111', border: 'none',
+              cursor: 'pointer', borderRadius: 4,
+            }}
+            onClick={() => {
+              const s = stateRef.current
+              if (!s) return
+              const p = Object.values(s.players)[0]
+              if (p) p.maxBombs = Math.min(8, p.maxBombs + 1)
+            }}
+          >+ MAX BOMBS</button>
           <button
             style={{
               padding: '4px 10px', fontSize: '8px',

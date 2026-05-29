@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 
-export default function LevelSelectScreen({ user, nav }) {
-  const campaign = user?.user_metadata?.campaign || {}
-  const maxLevel = Math.min(50, Math.max(1, campaign.maxLevel || 1))
+const DEBUG = false // set to false to lock levels again
+
+export default function LevelSelectScreen({ user, campaign, nav }) {
+  const maxLevel = Math.min(50, Math.max(1, campaign?.maxLevel || 1))
+  const effectiveMaxLevel = DEBUG ? 50 : maxLevel
 
   function handleSelect(level) {
-    if (level <= maxLevel) {
+    if (level <= effectiveMaxLevel) {
       nav('classic', { level })
     }
   }
@@ -69,9 +71,9 @@ export default function LevelSelectScreen({ user, nav }) {
                 )}
 
                 {row.map((level) => {
-                  const isUnlocked = level <= maxLevel
-                  const isCurrent = level === maxLevel
-                  const isCompleted = level < maxLevel
+                  const isUnlocked = level <= effectiveMaxLevel
+                  const isCurrent = level === maxLevel // Keep the visual highlight on their *actual* current maxLevel
+                  const isCompleted = level < maxLevel || (DEBUG && level > maxLevel)
 
                   return (
                     <div key={level} className="relative flex justify-center w-[60px]">

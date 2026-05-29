@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { signOut, createRoom, joinRoomByCode } from '../supabase'
 import { showInterstitialAd } from '../admob'
+import { playBGM } from '../game/audio/audio'
 
 const MENU_ITEMS = [
   { id: 'classic', label: '▶ PLAY CLASSIC', desc: '50 LEVELS · SOLO' },
@@ -34,6 +35,9 @@ export default function LandingScreen({ user, nav }) {
       showInterstitialAd()
       localStorage.setItem('last_app_open_ad_time', now.toString())
     }
+    
+    // Play menu music (will play if user has already interacted with the page)
+    playBGM('menu')
   }, [])
 
   useEffect(() => {

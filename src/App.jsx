@@ -17,6 +17,7 @@ import DeleteAccountScreen from './screens/DeleteAccountScreen'
 import { initializeAdMob } from './admob'
 import { Capacitor } from '@capacitor/core'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
+import { toggleMute, getIsMuted } from './game/audio/audio'
 
 // SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password | privacy | tos | contact | delete_account
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null)
   const [level, setLevel] = useState(1)
   const [campaign, setCampaign] = useState({})
+  const [muted, setMuted] = useState(getIsMuted())
 
   useEffect(() => {
     if (user) {
@@ -90,20 +92,34 @@ export default function App() {
     setScreen(s)
   }
 
-  if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
-  if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
-  if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
-  if (screen === 'level_select') return <LevelSelectScreen user={user} campaign={campaign} nav={nav} />
-  if (screen === 'classic') return <ClassicGameScreen user={user} campaign={campaign} setCampaign={setCampaign} startingLevel={level} nav={nav} />
-  if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />
-  if (screen === 'countdown') return <CountdownScreen room={room} nav={nav} />
-  if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />
-  if (screen === 'results') return <ResultsScreen user={user} room={room} result={gameResult} nav={nav} />
-  if (screen === 'leaderboard') return <LeaderboardScreen user={user} nav={nav} />
-  if (screen === 'privacy') return <PrivacyScreen nav={nav} />
-  if (screen === 'tos') return <TosScreen nav={nav} />
-  if (screen === 'contact') return <ContactScreen nav={nav} />
-  if (screen === 'delete_account') return <DeleteAccountScreen user={user} nav={nav} />
+  const renderScreen = () => {
+    if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
+    if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
+    if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
+    if (screen === 'level_select') return <LevelSelectScreen user={user} campaign={campaign} nav={nav} />
+    if (screen === 'classic') return <ClassicGameScreen user={user} campaign={campaign} setCampaign={setCampaign} startingLevel={level} nav={nav} />
+    if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />
+    if (screen === 'countdown') return <CountdownScreen room={room} nav={nav} />
+    if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />
+    if (screen === 'results') return <ResultsScreen user={user} room={room} result={gameResult} nav={nav} />
+    if (screen === 'leaderboard') return <LeaderboardScreen user={user} nav={nav} />
+    if (screen === 'privacy') return <PrivacyScreen nav={nav} />
+    if (screen === 'tos') return <TosScreen nav={nav} />
+    if (screen === 'contact') return <ContactScreen nav={nav} />
+    if (screen === 'delete_account') return <DeleteAccountScreen user={user} nav={nav} />
+    return null
+  }
 
-  return null
+  return (
+    <>
+      {renderScreen()}
+      <button
+        onClick={() => setMuted(toggleMute())}
+        className="fixed bottom-4 left-4 z-[999] w-10 h-10 bg-black/60 border border-bm-border rounded-full flex items-center justify-center text-lg hover:bg-black/80 hover:scale-110 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+        title={muted ? 'Unmute' : 'Mute'}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
+    </>
+  )
 }

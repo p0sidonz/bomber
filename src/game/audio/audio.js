@@ -5,16 +5,30 @@ let masterGain = null
 let bgmOscillators = []
 let bgmPlaying = false
 let currentBgmTrack = null
+let isMuted = localStorage.getItem('bm_muted') === 'true'
 
 function getCtx() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)()
     masterGain = ctx.createGain()
-    masterGain.gain.value = 0.3
+    masterGain.gain.value = isMuted ? 0 : 0.3
     masterGain.connect(ctx.destination)
   }
   if (ctx.state === 'suspended') ctx.resume()
   return ctx
+}
+
+export function toggleMute() {
+  isMuted = !isMuted
+  localStorage.setItem('bm_muted', isMuted)
+  if (masterGain) {
+    masterGain.gain.value = isMuted ? 0 : 0.3
+  }
+  return isMuted
+}
+
+export function getIsMuted() {
+  return isMuted
 }
 
 function playTone(freq, type, duration, gainVal = 0.3, startTime = 0) {
@@ -197,6 +211,22 @@ export const sfx = {
 
 // ─── BACKGROUND MUSIC ─────────────────────────────────────────────────────────
 const BGM_TRACKS = {
+  menu: { // Chill lobby / menu groove
+    notes: [
+      392, 0, 440, 0, 493, 0, 523, 0, 587, 0, 523, 0, 493, 0, 440, 0,
+      392, 0, 440, 0, 493, 0, 587, 0, 659, 0, 587, 0, 493, 0, 523, 493
+    ],
+    bass: [
+      98, 0, 0, 98, 0, 130, 0, 0, 98, 0, 0, 98, 0, 146, 0, 0,
+      98, 0, 0, 98, 0, 130, 0, 0, 98, 0, 0, 98, 0, 110, 0, 0
+    ],
+    drums: [
+      1, 3, 3, 3, 2, 3, 3, 3, 1, 3, 1, 3, 2, 3, 3, 3,
+      1, 3, 3, 3, 2, 3, 3, 3, 1, 3, 1, 3, 2, 3, 3, 3
+    ],
+    tempo: 380, // slightly slower, relaxed
+    type: 'triangle'
+  },
   world1: { // Upbeat Arcade Groove (C minor)
     notes: [
       262, 0, 311, 0, 349, 0, 392, 0, 466, 0, 392, 0, 349, 311, 262, 0,
@@ -246,8 +276,8 @@ const BGM_TRACKS = {
     type: 'square'
   }
 }
-
 let bgmFast = false
+let bgmTimeout = null
 
 export function playBGM(track, fast = false) {
   if (bgmPlaying && currentBgmTrack === track && bgmFast === fast) return
@@ -321,13 +351,13 @@ export function playBGM(track, fast = false) {
     }
 
     i++
-    setTimeout(scheduleNote, beatLen * 1000)
+    bgmTimeout = setTimeout(scheduleNote, beatLen * 1000)
   }
 
   scheduleNote()
 }
-
 export function stopBGM() {
+  if (bgmTimeout) clearTimeout(bgmTimeout)
   bgmPlaying = false
   for (const osc of bgmOscillators) {
     try { osc.stop() } catch (_) {}

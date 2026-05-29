@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
+import { playBGM } from '../game/audio/audio'
 
 const DEBUG = false // set to false to lock levels again
 
 export default function LevelSelectScreen({ user, campaign, nav }) {
+  useEffect(() => {
+    playBGM('menu')
+  }, [])
+
   const maxLevel = Math.min(50, Math.max(1, campaign?.maxLevel || 1))
   const effectiveMaxLevel = DEBUG ? 50 : maxLevel
 

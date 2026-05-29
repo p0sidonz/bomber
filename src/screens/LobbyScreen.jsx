@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, setPlayerReady, startGame, getRoomPlayers, updateRoomSettings } from '../supabase'
+import { playBGM } from '../game/audio/audio'
 
 const COLORS = { red: '#e03040', blue: '#3060e0', green: '#30c060', yellow: '#f0c040', purple: '#9040c0', orange: '#e08030' }
 const MAPS = [
@@ -14,6 +15,10 @@ const MATCH_TYPES = [
 ]
 
 export default function LobbyScreen({ user, room, nav }) {
+  useEffect(() => {
+    playBGM('menu')
+  }, [])
+
   const [players, setPlayers] = useState([])
   const [isReady, setIsReady] = useState(false)
   const [mapId, setMapId] = useState(room?.map_id || 1)

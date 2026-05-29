@@ -16,6 +16,7 @@ import ContactScreen from './screens/ContactScreen'
 import DeleteAccountScreen from './screens/DeleteAccountScreen'
 import { initializeAdMob } from './admob'
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
 import { toggleMute, getIsMuted } from './game/audio/audio'
 
@@ -41,6 +42,25 @@ export default function App() {
     initializeAdMob()
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error(e))
+      
+      const backListener = CapacitorApp.addListener('backButton', () => {
+        setScreen(curr => {
+          if (curr === 'classic' || curr === 'game') {
+            // Dispatch event for the game screen to handle (e.g. show pause menu)
+            window.dispatchEvent(new CustomEvent('hw_back_pressed'))
+            return curr
+          }
+          if (curr === 'landing' || curr === 'auth') {
+            CapacitorApp.exitApp()
+            return curr
+          }
+          return 'landing'
+        })
+      })
+
+      return () => {
+        backListener.then(l => l.remove())
+      }
     }
   }, [])
 
@@ -113,13 +133,15 @@ export default function App() {
   return (
     <>
       {renderScreen()}
-      <button
-        onClick={() => setMuted(toggleMute())}
-        className="fixed bottom-4 left-4 z-[999] w-10 h-10 bg-black/60 border border-bm-border rounded-full flex items-center justify-center text-lg hover:bg-black/80 hover:scale-110 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]"
-        title={muted ? 'Unmute' : 'Mute'}
-      >
-        {muted ? '🔇' : '🔊'}
-      </button>
+      {screen !== 'classic' && screen !== 'game' && (
+        <button
+          onClick={() => setMuted(toggleMute())}
+          className="fixed bottom-4 left-4 z-[999] w-10 h-10 bg-black/60 border border-bm-border rounded-full flex items-center justify-center text-lg hover:bg-black/80 hover:scale-110 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+          title={muted ? 'Unmute' : 'Mute'}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+      )}
     </>
   )
 }

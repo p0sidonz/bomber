@@ -12,6 +12,7 @@
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
     "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^7.6.5",
     "@capacitor/core": "^8.3.4",
     "@capacitor/screen-orientation": "^8.0.1",

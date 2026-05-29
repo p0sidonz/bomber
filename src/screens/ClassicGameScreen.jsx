@@ -5,14 +5,14 @@ import { movePlayer, updateSlidingBombs } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups, remoteDetonate } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
-import { sfx, playBGM, stopBGM, setBGMFast } from '../game/audio/audio.js'
+import { sfx, playBGM, stopBGM, setBGMFast, toggleMute, getIsMuted } from '../game/audio/audio.js'
 import { insertHighScore, saveCampaignProgress } from '../supabase.js'
 import { showInterstitialAd } from '../admob.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50 // ms per game tick (20 tps)
-const DEBUG = true // set to false to hide debug buttons
+const DEBUG = false // set to false to hide debug buttons
 
 const PW_COLORS_CSS = {
   extrabomb: '#f0c040', fireup: '#ff4400', speedup: '#40ff40',
@@ -27,6 +27,23 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
   const tickIntervalRef = useRef(null)
   const levelRef = useRef(1)
   const [overlay, setOverlay] = useState(null) // null | 'paused' | 'level_clear' | 'game_over' | 'game_complete'
+  const [muted, setMuted] = useState(getIsMuted())
+  const [showGuide, setShowGuide] = useState(false)
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBack = () => {
+      if (!overlay) {
+        if (stateRef.current) stateRef.current.status = 'paused'
+        setOverlay('paused')
+      } else if (overlay === 'paused') {
+        if (stateRef.current) stateRef.current.status = 'active'
+        setOverlay(null)
+      }
+    }
+    window.addEventListener('hw_back_pressed', onBack)
+    return () => window.removeEventListener('hw_back_pressed', onBack)
+  }, [overlay])
   const [hudData, setHudData] = useState(null)
   const bombPressedRef = useRef(false)
 
@@ -412,22 +429,23 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       {/* Mobile Touch Controls */}
       {!overlay && <MobileControls />}
 
-      {/* Top right Pause Button */}
+      {/* Top right Pause Button (Gear Icon) */}
       {!overlay && (
         <button
           style={{
             position: 'absolute', top: 16, right: 16, zIndex: 300,
-            background: 'rgba(0,0,0,0.5)', color: '#fff',
-            border: '2px solid #f0c040', borderRadius: '4px',
-            padding: '8px 12px', fontFamily: '"Press Start 2P", monospace',
-            fontSize: '10px', cursor: 'pointer', pointerEvents: 'auto'
+            background: 'rgba(0,0,0,0.6)', color: '#fff',
+            border: '2px solid #f0c040', borderRadius: '8px',
+            width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', pointerEvents: 'auto',
+            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
           }}
           onClick={() => {
             if (stateRef.current) stateRef.current.status = 'paused'
             setOverlay('paused')
           }}
         >
-          ⏸ PAUSE
+          <span style={{ fontSize: '24px', transform: 'translateY(-2px)' }}>⚙️</span>
         </button>
       )}
 
@@ -540,40 +558,58 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       {/* Overlays */}
       {overlay === 'paused' && (
         <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column', overflowY: 'auto' }}>
-          <h2 className="text-pixel text-bm-accent text-xl" style={{ marginBottom: 16 }}>PAUSED</h2>
+          <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>
+            {showGuide ? 'POWERUPS' : 'PAUSED'}
+          </h2>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-            <button className="btn-pixel" onClick={() => {
-              if (stateRef.current) stateRef.current.status = 'active'
-              setOverlay(null)
-            }}>RESUME</button>
-            <button className="btn-pixel btn-danger" onClick={handleQuit}>QUIT</button>
-          </div>
-
-          <div style={{
-            background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '12px 16px',
-            maxWidth: 480, width: '90%',
-            fontFamily: '"Press Start 2P", monospace', fontSize: '7px',
-            color: '#ccc', lineHeight: '1.8',
-          }}>
-            <div style={{ color: '#f0c040', fontSize: '9px', marginBottom: 8, textAlign: 'center' }}>⚡ POWERUP GUIDE</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
-              <div><span style={{ color: '#f0c040' }}>B</span> Extra Bomb — +1 bomb</div>
-              <div><span style={{ color: '#ff4400' }}>F</span> Fire Up — +1 blast range</div>
-              <div><span style={{ color: '#40ff40' }}>S</span> Speed Up — move faster</div>
-              <div><span style={{ color: '#ff8800' }}>K</span> Kick — push bombs</div>
-              <div><span style={{ color: '#8888ff' }}>R</span> Remote — detonate anytime</div>
-              <div><span style={{ color: '#cccccc' }}>P</span> Bomb Pass — walk thru bombs</div>
-              <div><span style={{ color: '#aaffaa' }}>W</span> Wall Pass — walk thru bricks</div>
-              <div><span style={{ color: '#ff2200' }}>X</span> Full Fire — max blast range</div>
-              <div><span style={{ color: '#aa0000' }}>!</span> Skull — random curse (bad!)</div>
-              <div><span style={{ color: '#00ccff' }}>T</span> Clock — +60 sec timer</div>
-              <div><span style={{ color: '#ff00ff' }}>?</span> Mystery — random powerup</div>
+          {!showGuide ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '220px', marginBottom: 24 }}>
+              <button className="btn-pixel btn-primary w-full py-4" onClick={() => {
+                if (stateRef.current) stateRef.current.status = 'active'
+                setOverlay(null)
+                setShowGuide(false)
+              }}>RESUME</button>
+              <button className="btn-pixel w-full py-4" onClick={() => setMuted(toggleMute())}>
+                SOUND: {muted ? 'OFF 🔇' : 'ON 🔊'}
+              </button>
+              <button className="btn-pixel w-full py-4" onClick={() => setShowGuide(true)}>
+                POWERUP INFO
+              </button>
+              <button className="btn-pixel btn-danger w-full py-4" onClick={() => {
+                if (window.confirm("Quit to Main Menu? Progress will be lost.")) {
+                  handleQuit()
+                }
+              }}>MAIN MENU</button>
             </div>
-            <div style={{ marginTop: 10, color: '#888', textAlign: 'center', fontSize: '6px' }}>
-              DESTROY BRICKS TO FIND POWERUPS · FIND THE EXIT GATE · KILL ALL ENEMIES TO OPEN IT
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '480px' }}>
+              <div style={{
+                background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '16px',
+                width: '90%', fontFamily: '"Press Start 2P", monospace', fontSize: '7px',
+                color: '#ccc', lineHeight: '1.8', marginBottom: 24
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+                  <div><span style={{ color: '#f0c040' }}>B</span> Extra Bomb — +1 bomb</div>
+                  <div><span style={{ color: '#ff4400' }}>F</span> Fire Up — +1 blast range</div>
+                  <div><span style={{ color: '#40ff40' }}>S</span> Speed Up — move faster</div>
+                  <div><span style={{ color: '#ff8800' }}>K</span> Kick — push bombs</div>
+                  <div><span style={{ color: '#8888ff' }}>R</span> Remote — detonate anytime</div>
+                  <div><span style={{ color: '#cccccc' }}>P</span> Bomb Pass — walk thru bombs</div>
+                  <div><span style={{ color: '#aaffaa' }}>W</span> Wall Pass — walk thru bricks</div>
+                  <div><span style={{ color: '#ff2200' }}>X</span> Full Fire — max blast range</div>
+                  <div><span style={{ color: '#aa0000' }}>!</span> Skull — random curse (bad!)</div>
+                  <div><span style={{ color: '#00ccff' }}>T</span> Clock — +60 sec timer</div>
+                  <div><span style={{ color: '#ff00ff' }}>?</span> Mystery — random powerup</div>
+                </div>
+                <div style={{ marginTop: 12, color: '#888', textAlign: 'center', fontSize: '6px' }}>
+                  DESTROY BRICKS TO FIND POWERUPS · FIND THE EXIT GATE · KILL ALL ENEMIES TO OPEN IT
+                </div>
+              </div>
+              <button className="btn-pixel w-full max-w-[220px] py-4" onClick={() => setShowGuide(false)}>
+                ← BACK
+              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
 

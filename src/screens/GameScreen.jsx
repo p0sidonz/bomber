@@ -5,7 +5,7 @@ import { movePlayer, updateSlidingBombs } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
-import { sfx, playBGM, stopBGM } from '../game/audio/audio.js'
+import { sfx, playBGM, stopBGM, toggleMute, getIsMuted } from '../game/audio/audio.js'
 import { subscribeGame, unsubscribeGame, broadcastInput, broadcastState } from '../game/multiplayer/channels.js'
 import { getRoomPlayers } from '../supabase.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
@@ -23,6 +23,18 @@ export default function GameScreen({ user, room, nav }) {
   const [gameReady, setGameReady] = useState(false)
   const [spectating, setSpectating] = useState(false)
   const [hudData, setHudData] = useState(null)
+  const [overlay, setOverlay] = useState(null) // null | 'menu'
+  const [muted, setMuted] = useState(getIsMuted())
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBack = () => {
+      if (!overlay) setOverlay('menu')
+      else if (overlay === 'menu') setOverlay(null)
+    }
+    window.addEventListener('hw_back_pressed', onBack)
+    return () => window.removeEventListener('hw_back_pressed', onBack)
+  }, [overlay])
   const bombPressedRef = useRef(false)
   const clientBombStateRef = useRef({})
   const myUserId = user?.id
@@ -413,23 +425,48 @@ export default function GameScreen({ user, room, nav }) {
       </div>
 
       {/* Mobile Touch Controls */}
-      {!gameOver && <MobileControls />}
+      {!gameOver && !overlay && <MobileControls />}
 
-      {/* Top right Back Button */}
-      {!gameOver && (
+      {/* Top right Gear Button */}
+      {!gameOver && !overlay && (
         <button
           style={{
             position: 'absolute', top: 16, right: 16, zIndex: 300,
-            background: 'rgba(0,0,0,0.5)', color: '#fff',
-            border: '2px solid #f0c040', borderRadius: '4px',
-            padding: '8px 12px', fontFamily: '"Press Start 2P", monospace',
-            fontSize: '10px', cursor: 'pointer', pointerEvents: 'auto'
+            background: 'rgba(0,0,0,0.6)', color: '#fff',
+            border: '2px solid #f0c040', borderRadius: '8px',
+            width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', pointerEvents: 'auto',
+            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
           }}
-          onClick={() => nav('lobby', { room })}
+          onClick={() => setOverlay('menu')}
         >
-          ← BACK
+          <span style={{ fontSize: '24px', transform: 'translateY(-2px)' }}>⚙️</span>
         </button>
       )}
+
+      {/* In-Game Menu Overlay */}
+      {overlay === 'menu' && (
+        <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column' }}>
+          <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>MENU</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '220px' }}>
+            <button className="btn-pixel btn-primary w-full py-4" onClick={() => setOverlay(null)}>
+              RESUME
+            </button>
+            <button className="btn-pixel w-full py-4" onClick={() => setMuted(toggleMute())}>
+              SOUND: {muted ? 'OFF 🔇' : 'ON 🔊'}
+            </button>
+            <button className="btn-pixel btn-danger w-full py-4" onClick={() => {
+              if (window.confirm("Quit to Lobby? You will leave the current game.")) {
+                nav('lobby', { room })
+              }
+            }}>
+              QUIT TO LOBBY
+            </button>
+          </div>
+        </div>
+      )}
+
+
 
       {gameOver && (
         <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 300 }}>

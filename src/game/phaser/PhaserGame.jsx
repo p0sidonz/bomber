@@ -155,6 +155,12 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
               color: hudData.timerTicks < 400 ? '#ff4040' : '#f0c040',
               fontSize: isMobile ? '10px' : '13px', marginLeft: 8,
             }}>{hudData.timerStr}</div>
+            <div 
+              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', pointerEvents: 'auto', fontSize: isMobile ? '14px' : '16px' }}
+              onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
+            >
+              ⚙️
+            </div>
           </div>
         )}
       </div>
@@ -186,6 +192,13 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
           {hudData.gateOpen && (
             <span style={{ color: '#ffffa0' }}>★EXIT</span>
           )}
+          <span style={{ color: '#666' }}>|</span>
+          <div 
+            style={{ cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '10px' : '12px' }}
+            onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
+          >
+            ⚙️
+          </div>
         </div>
       )}
 

@@ -429,26 +429,6 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       {/* Mobile Touch Controls */}
       {!overlay && <MobileControls />}
 
-      {/* Top right Pause Button (Gear Icon) */}
-      {!overlay && (
-        <button
-          style={{
-            position: 'absolute', top: 16, right: 16, zIndex: 300,
-            background: 'rgba(0,0,0,0.6)', color: '#fff',
-            border: '2px solid #f0c040', borderRadius: '8px',
-            width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', pointerEvents: 'auto',
-            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-          }}
-          onClick={() => {
-            if (stateRef.current) stateRef.current.status = 'paused'
-            setOverlay('paused')
-          }}
-        >
-          <span style={{ fontSize: '24px', transform: 'translateY(-2px)' }}>⚙️</span>
-        </button>
-      )}
-
       {/* Debug buttons */}
       {DEBUG && (
         <div style={{
@@ -559,7 +539,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       {overlay === 'paused' && (
         <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column', overflowY: 'auto' }}>
           <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>
-            {showGuide ? 'POWERUPS' : 'PAUSED'}
+            {showGuide ? '' : 'PAUSED'}
           </h2>
 
           {!showGuide ? (

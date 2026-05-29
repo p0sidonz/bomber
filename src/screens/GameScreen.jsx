@@ -427,23 +427,6 @@ export default function GameScreen({ user, room, nav }) {
       {/* Mobile Touch Controls */}
       {!gameOver && !overlay && <MobileControls />}
 
-      {/* Top right Gear Button */}
-      {!gameOver && !overlay && (
-        <button
-          style={{
-            position: 'absolute', top: 16, right: 16, zIndex: 300,
-            background: 'rgba(0,0,0,0.6)', color: '#fff',
-            border: '2px solid #f0c040', borderRadius: '8px',
-            width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', pointerEvents: 'auto',
-            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-          }}
-          onClick={() => setOverlay('menu')}
-        >
-          <span style={{ fontSize: '24px', transform: 'translateY(-2px)' }}>⚙️</span>
-        </button>
-      )}
-
       {/* In-Game Menu Overlay */}
       {overlay === 'menu' && (
         <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column' }}>

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { Capacitor } from '@capacitor/core'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import GameScene from './GameScene.js'
 import { toggleFullscreen } from '../audio/audio.js'
 
@@ -24,24 +25,18 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
     }
   }, [])
 
-  // Lock to landscape + immersive fullscreen on native
+  // Lock to landscape + hide status bar on native
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {})
-      // Try to hide status bar / nav bar via Android immersive
-      try {
-        if (window.StatusBar) window.StatusBar.hide()
-        if (window.NavigationBar) window.NavigationBar.hide()
-      } catch (_) {}
-      // Fallback: request web fullscreen API
-      try {
-        const el = document.documentElement
-        if (el.requestFullscreen) el.requestFullscreen().catch(() => {})
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
-      } catch (_) {}
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
+      StatusBar.hide().catch(() => {})
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
 
       return () => {
         ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(() => {})
+        StatusBar.show().catch(() => {})
+        StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
       }
     }
   }, [])

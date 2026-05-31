@@ -418,18 +418,20 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         hudData={hudData}
       />
 
-      {/* Controls hint */}
-      <div style={{
-        position: 'absolute', bottom: 8, right: 16,
-        fontSize: '7px', color: '#555', zIndex: 20,
-        fontFamily: '"Press Start 2P", monospace',
-        pointerEvents: 'none',
-      }}>
-      ← → ↑ ↓ MOVE  ·  SPACE PLASMA CHARGE  ·  ESC PAUSE
-      </div>
+      {/* Controls hint (desktop only) */}
+      {!('ontouchstart' in window) && (
+        <div style={{
+          position: 'absolute', bottom: 8, right: 16,
+          fontSize: '7px', color: '#555', zIndex: 20,
+          fontFamily: '"Press Start 2P", monospace',
+          pointerEvents: 'none',
+        }}>
+        ← → ↑ ↓ MOVE  ·  SPACE PLASMA CHARGE  ·  ESC PAUSE
+        </div>
+      )}
 
       {/* Mobile Touch Controls */}
-      {!overlay && <MobileControls />}
+      {!overlay && <MobileControls hudData={hudData} />}
 
       {/* Debug buttons */}
       {DEBUG && (

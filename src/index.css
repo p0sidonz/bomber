@@ -41,11 +41,16 @@
 
 html, body, #root {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   background: radial-gradient(ellipse at 50% 0%, #080820 0%, #04040e 60%);
   color: #fff;
   font-family: 'Outfit', 'Rajdhani', sans-serif;
   overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* =========================================================

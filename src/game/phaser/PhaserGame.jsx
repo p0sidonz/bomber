@@ -24,14 +24,44 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
     }
   }, [])
 
-  // Lock to landscape orientation on native mobile when playing
+  // Lock to landscape + immersive fullscreen on native
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
-      ScreenOrientation.lock({ orientation: 'landscape' }).catch(e => console.error('Failed to lock orientation', e))
+      ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {})
+      // Try to hide status bar / nav bar via Android immersive
+      try {
+        if (window.StatusBar) window.StatusBar.hide()
+        if (window.NavigationBar) window.NavigationBar.hide()
+      } catch (_) {}
+      // Fallback: request web fullscreen API
+      try {
+        const el = document.documentElement
+        if (el.requestFullscreen) el.requestFullscreen().catch(() => {})
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+      } catch (_) {}
+
       return () => {
-        ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error('Failed to unlock orientation', e))
+        ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(() => {})
       }
     }
+  }, [])
+
+  // Auto-request fullscreen on first user touch (web mobile)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    if (!isTouchDevice) return
+
+    const requestFS = () => {
+      const el = document.documentElement
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (el.requestFullscreen) el.requestFullscreen().catch(() => {})
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+      }
+      window.removeEventListener('touchstart', requestFS)
+    }
+    window.addEventListener('touchstart', requestFS, { once: true })
+    return () => window.removeEventListener('touchstart', requestFS)
   }, [])
 
   useEffect(() => {
@@ -91,27 +121,30 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
         {mode === 'singleplayer' && hudData && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: isMobile ? '6px 14px' : '10px 28px',
-            background: 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.6) 70%, transparent 100%)',
+            padding: isMobile ? '2px 8px' : '10px 28px',
+            background: isMobile
+              ? 'linear-gradient(180deg, rgba(6,6,16,0.88) 0%, rgba(6,6,16,0.4) 80%, transparent 100%)'
+              : 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.6) 70%, transparent 100%)',
             fontFamily: '"Rajdhani", "Outfit", sans-serif',
-            fontSize: isMobile ? '13px' : '16px',
+            fontSize: isMobile ? '11px' : '16px',
             fontWeight: 600,
             letterSpacing: '0.04em',
             flexWrap: 'nowrap',
-            gap: isMobile ? '10px' : '20px',
+            gap: isMobile ? '6px' : '20px',
+            minHeight: isMobile ? '28px' : 'auto',
           }}>
             {/* Left: Timer + Enemies */}
-            <div style={{ display: 'flex', gap: isMobile ? '12px' : '24px', alignItems: 'center', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>TIME</span>
+            <div style={{ display: 'flex', gap: isMobile ? '8px' : '24px', alignItems: 'center', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6 }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '8px' : '12px', letterSpacing: '0.1em' }}>TIME</span>
                 <span style={{
                   color: hudData.timerTicks < 600 ? '#ff4444' : '#ffffff',
                   textShadow: hudData.timerTicks < 600 ? '0 0 12px #ff4444' : 'none',
                   fontWeight: 700,
                 }}>{hudData.timerStr}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>ENEMIES</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6 }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '8px' : '12px', letterSpacing: '0.1em' }}>EN</span>
                 <span style={{ color: '#ff7040', fontWeight: 700 }}>{hudData.enemyCount}</span>
               </div>
             </div>
@@ -120,11 +153,11 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
             <div style={{
               background: 'rgba(240,192,64,0.1)',
               border: '1px solid rgba(240,192,64,0.3)',
-              borderRadius: 8,
-              padding: isMobile ? '2px 10px' : '3px 14px',
+              borderRadius: isMobile ? 5 : 8,
+              padding: isMobile ? '1px 7px' : '3px 14px',
               color: '#f0c040',
               textShadow: '0 0 12px rgba(240,192,64,0.6)',
-              fontSize: isMobile ? '14px' : '18px',
+              fontSize: isMobile ? '11px' : '18px',
               fontWeight: 800,
               letterSpacing: '0.08em',
               flexShrink: 0,
@@ -132,26 +165,34 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
               LV {String(hudData.level || 1).padStart(2, '0')}
             </div>
 
-            {/* Right: Score + Lives */}
-            <div style={{ display: 'flex', gap: isMobile ? '12px' : '24px', alignItems: 'center', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>SCORE</span>
-                <span style={{ color: '#f0c040', fontWeight: 700 }}>{String(hudData.score || 0).padStart(6, '0')}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Right: Score + Lives + Pause */}
+            <div style={{ display: 'flex', gap: isMobile ? '6px' : '24px', alignItems: 'center', minWidth: 0 }}>
+              <span style={{ color: '#f0c040', fontWeight: 700, fontSize: isMobile ? '10px' : undefined }}>
+                {String(hudData.score || 0).padStart(6, '0')}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {Array.from({ length: Math.max(0, hudData.lives || 0) }).map((_, i) => (
-                  <span key={i} style={{ color: '#ff3355', fontSize: isMobile ? '12px' : '15px', textShadow: '0 0 8px #ff3355' }}>♥</span>
+                  <span key={i} style={{ color: '#ff3355', fontSize: isMobile ? '9px' : '15px', textShadow: '0 0 8px #ff3355' }}>♥</span>
                 ))}
               </div>
+              {/* Inline pause button on mobile */}
+              {isMobile && (
+                <div
+                  style={{ cursor: 'pointer', pointerEvents: 'auto', opacity: 0.5, fontSize: '12px', marginLeft: 2 }}
+                  onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
+                >⚙️</div>
+              )}
             </div>
           </div>
         )}
 
         {mode === 'multiplayer' && hudData && (
           <div style={{
-            display: 'flex', justifyContent: 'center', gap: isMobile ? '16px' : '32px', alignItems: 'center',
-            padding: isMobile ? '6px 14px' : '10px 28px',
-            background: 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.5) 70%, transparent 100%)',
+            display: 'flex', justifyContent: 'center', gap: isMobile ? '12px' : '32px', alignItems: 'center',
+            padding: isMobile ? '2px 8px' : '10px 28px',
+            background: isMobile
+              ? 'linear-gradient(180deg, rgba(6,6,16,0.88) 0%, rgba(6,6,16,0.4) 80%, transparent 100%)'
+              : 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.5) 70%, transparent 100%)',
             fontFamily: '"Rajdhani", "Outfit", sans-serif',
             fontWeight: 600,
           }}>
@@ -161,20 +202,18 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
                 opacity: (p.alive || p.respawning) ? 1 : 0.3,
                 transition: 'opacity 0.3s',
               }}>
-                {/* Color dot */}
                 <div style={{
-                  width: 12, height: 12, margin: '0 auto 4px',
+                  width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, margin: '0 auto 2px',
                   backgroundColor: p.color || '#fff',
                   borderRadius: '50%',
-                  boxShadow: p.alive ? `0 0 8px ${p.color || '#fff'}` : p.respawning ? '0 0 8px #ffaa00' : 'none',
+                  boxShadow: p.alive ? `0 0 6px ${p.color || '#fff'}` : p.respawning ? '0 0 6px #ffaa00' : 'none',
                   border: p.respawning ? '2px solid #ffaa00' : 'none',
                 }} />
-                <div style={{ fontSize: isMobile ? '9px' : '11px', color: '#fff', letterSpacing: '0.05em' }}>{(p.name || '').substring(0, 6).toUpperCase()}</div>
-                <div style={{ fontSize: isMobile ? '9px' : '11px', color: '#f0c040' }}>×{p.kills || 0} KO</div>
-                {/* Lives */}
-                <div style={{ fontSize: isMobile ? '10px' : '12px', marginTop: 2 }}>
+                <div style={{ fontSize: isMobile ? '7px' : '11px', color: '#fff', letterSpacing: '0.05em' }}>{(p.name || '').substring(0, 5).toUpperCase()}</div>
+                <div style={{ fontSize: isMobile ? '7px' : '11px', color: '#f0c040' }}>×{p.kills || 0}</div>
+                <div style={{ fontSize: isMobile ? '8px' : '12px', marginTop: 1 }}>
                   {p.respawning
-                    ? <span style={{ color: '#ffaa00', fontSize: '14px' }}>↺</span>
+                    ? <span style={{ color: '#ffaa00', fontSize: isMobile ? '10px' : '14px' }}>↺</span>
                     : Array.from({ length: Math.max(0, p.lives ?? 3) }).map((_, i) => (
                         <span key={i} style={{ color: '#ff3355', textShadow: '0 0 6px #ff3355' }}>♥</span>
                       ))
@@ -182,21 +221,20 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
                 </div>
               </div>
             ))}
-            {/* Timer */}
             <div style={{
               background: 'rgba(240,192,64,0.1)',
               border: '1px solid rgba(240,192,64,0.25)',
-              borderRadius: 8,
-              padding: isMobile ? '2px 10px' : '3px 14px',
+              borderRadius: isMobile ? 5 : 8,
+              padding: isMobile ? '1px 7px' : '3px 14px',
               color: hudData.timerTicks < 400 ? '#ff4444' : '#f0c040',
               textShadow: hudData.timerTicks < 400 ? '0 0 12px #ff4444' : '0 0 8px rgba(240,192,64,0.5)',
-              fontSize: isMobile ? '14px' : '20px',
+              fontSize: isMobile ? '12px' : '20px',
               fontWeight: 800,
               letterSpacing: '0.05em',
-              marginLeft: 8,
+              marginLeft: 4,
             }}>{hudData.timerStr}</div>
             <div 
-              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', pointerEvents: 'auto', fontSize: isMobile ? '16px' : '18px', opacity: 0.6 }}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', pointerEvents: 'auto', fontSize: isMobile ? '13px' : '18px', opacity: 0.5 }}
               onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
             >
               ⚙️
@@ -206,22 +244,22 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       </div>
 
       {/* ─── BOTTOM STATS BAR (singleplayer) ─── */}
-      {mode === 'singleplayer' && hudData && (
+      {mode === 'singleplayer' && hudData && !isMobile && (
         <div style={{
           position: 'absolute',
-          bottom: isMobile ? '6px' : '12px',
+          bottom: '12px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: isMobile ? 10 : 16,
+          gap: 16,
           alignItems: 'center',
           fontFamily: '"Rajdhani", "Outfit", sans-serif',
-          fontSize: isMobile ? '12px' : '14px',
+          fontSize: '14px',
           fontWeight: 700,
           letterSpacing: '0.08em',
           background: 'rgba(6,6,16,0.8)',
           border: '1px solid rgba(255,255,255,0.06)',
-          padding: isMobile ? '5px 12px' : '7px 18px',
+          padding: '7px 18px',
           borderRadius: 10,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
@@ -251,7 +289,7 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
           )}
           <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
           <div 
-            style={{ cursor: 'pointer', pointerEvents: 'auto', opacity: 0.6, fontSize: isMobile ? '12px' : '14px' }}
+            style={{ cursor: 'pointer', pointerEvents: 'auto', opacity: 0.6, fontSize: '14px' }}
             onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
           >
             ⚙️
@@ -265,10 +303,10 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
           onClick={toggleFullscreen}
           style={{
             position: 'absolute',
-            top: isMobile ? '34px' : '42px',
+            top: isMobile ? '30px' : '42px',
             right: '8px',
-            width: '28px',
-            height: '28px',
+            width: isMobile ? '24px' : '28px',
+            height: isMobile ? '24px' : '28px',
             background: 'rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.2)',
             borderRadius: '6px',
@@ -280,9 +318,8 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
             pointerEvents: 'auto',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round">
             {isFullscreen ? (
-              // Exit fullscreen icon
               <>
                 <polyline points="4 14 4 20 10 20" />
                 <polyline points="20 10 20 4 14 4" />
@@ -290,7 +327,6 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
                 <line x1="4" y1="20" x2="10" y2="14" />
               </>
             ) : (
-              // Enter fullscreen icon
               <>
                 <polyline points="15 3 21 3 21 9" />
                 <polyline points="9 21 3 21 3 15" />

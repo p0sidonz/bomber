@@ -435,7 +435,7 @@ export default function GameScreen({ user, room, nav }) {
       </div>
 
       {/* Mobile Touch Controls */}
-      {!gameOver && !overlay && <MobileControls />}
+      {!gameOver && !overlay && <MobileControls hudData={hudData} />}
 
       {/* In-Game Menu Overlay */}
       {overlay === 'menu' && (

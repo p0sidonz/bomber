@@ -1,16 +1,26 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { setVirtualKey } from '../game/input/input.js'
 
-const JOYSTICK_RADIUS = 55
-const KNOB_RADIUS = 26
-const DEAD_ZONE = 12
+const JOYSTICK_RADIUS = 50
+const KNOB_RADIUS = 22
+const DEAD_ZONE = 10
+const DPAD_SIZE = 120
+const DPAD_BTN = 38
 
-export default function MobileControls() {
+const CONTROL_TYPE_KEY = 'bm_control_type'
+const CONTROL_OPACITY_KEY = 'bm_control_opacity'
+
+export default function MobileControls({ hudData }) {
   const [isTouch, setIsTouch] = useState(false)
+  const [controlType, setControlType] = useState(() => localStorage.getItem(CONTROL_TYPE_KEY) || 'analog')
+  const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem(CONTROL_OPACITY_KEY)) || 0.55)
+  const [showSettings, setShowSettings] = useState(false)
+
   const joystickRef = useRef(null)
-  const [joystick, setJoystick] = useState(null) // { baseX, baseY, knobX, knobY }
+  const [joystick, setJoystick] = useState(null)
   const activeKeysRef = useRef(new Set())
   const joystickTouchIdRef = useRef(null)
+  const dpadActiveRef = useRef(new Set())
 
   useEffect(() => {
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
@@ -18,11 +28,8 @@ export default function MobileControls() {
     }
   }, [])
 
-  // Clean up on unmount
   useEffect(() => {
-    return () => {
-      releaseAll()
-    }
+    return () => { releaseAll() }
   }, [])
 
   const pressKey = useCallback((key) => {
@@ -53,27 +60,19 @@ export default function MobileControls() {
     releaseKey('ArrowRight')
   }, [releaseKey])
 
-  // Convert joystick delta to key presses
+  // ── JOYSTICK INPUT ──
   const applyJoystickInput = useCallback((dx, dy) => {
     const dist = Math.sqrt(dx * dx + dy * dy)
-
     if (dist < DEAD_ZONE) {
       releaseDirections()
       return
     }
-
-    const angle = Math.atan2(dy, dx)
-
-    // 4-directional snapping (like bomberman needs)
-    // Right: -45° to 45°, Down: 45° to 135°, Left: 135° to -135°, Up: -135° to -45°
     if (Math.abs(dx) > Math.abs(dy)) {
-      // Horizontal dominant
       releaseKey('ArrowUp')
       releaseKey('ArrowDown')
       if (dx > 0) { pressKey('ArrowRight'); releaseKey('ArrowLeft') }
       else { pressKey('ArrowLeft'); releaseKey('ArrowRight') }
     } else {
-      // Vertical dominant
       releaseKey('ArrowLeft')
       releaseKey('ArrowRight')
       if (dy > 0) { pressKey('ArrowDown'); releaseKey('ArrowUp') }
@@ -81,14 +80,11 @@ export default function MobileControls() {
     }
   }, [pressKey, releaseKey, releaseDirections])
 
-  // ── JOYSTICK TOUCH HANDLERS ──
   const onJoystickTouchStart = useCallback((e) => {
     e.preventDefault()
-    if (joystickTouchIdRef.current !== null) return // already tracking
-
+    if (joystickTouchIdRef.current !== null) return
     const touch = e.changedTouches[0]
     joystickTouchIdRef.current = touch.identifier
-
     setJoystick({
       baseX: touch.clientX,
       baseY: touch.clientY,
@@ -100,7 +96,6 @@ export default function MobileControls() {
   const onJoystickTouchMove = useCallback((e) => {
     e.preventDefault()
     if (joystickTouchIdRef.current === null) return
-
     for (const touch of e.changedTouches) {
       if (touch.identifier === joystickTouchIdRef.current) {
         setJoystick(prev => {
@@ -108,20 +103,12 @@ export default function MobileControls() {
           let dx = touch.clientX - prev.baseX
           let dy = touch.clientY - prev.baseY
           const dist = Math.sqrt(dx * dx + dy * dy)
-
-          // Clamp to joystick radius
           if (dist > JOYSTICK_RADIUS) {
             dx = (dx / dist) * JOYSTICK_RADIUS
             dy = (dy / dist) * JOYSTICK_RADIUS
           }
-
           applyJoystickInput(dx, dy)
-
-          return {
-            ...prev,
-            knobX: prev.baseX + dx,
-            knobY: prev.baseY + dy,
-          }
+          return { ...prev, knobX: prev.baseX + dx, knobY: prev.baseY + dy }
         })
         break
       }
@@ -140,6 +127,19 @@ export default function MobileControls() {
     }
   }, [releaseDirections])
 
+  // ── D-PAD INPUT ──
+  const onDpadDown = useCallback((dir) => (e) => {
+    e.preventDefault()
+    dpadActiveRef.current.add(dir)
+    pressKey(dir)
+  }, [pressKey])
+
+  const onDpadUp = useCallback((dir) => (e) => {
+    e.preventDefault()
+    dpadActiveRef.current.delete(dir)
+    releaseKey(dir)
+  }, [releaseKey])
+
   // ── BOMB BUTTON ──
   const onBombStart = useCallback((e) => {
     e.preventDefault()
@@ -151,15 +151,29 @@ export default function MobileControls() {
     releaseKey('Space')
   }, [releaseKey])
 
+  // ── SETTINGS ──
+  const cycleControlType = useCallback(() => {
+    setControlType(prev => {
+      const next = prev === 'analog' ? 'dpad' : 'analog'
+      localStorage.setItem(CONTROL_TYPE_KEY, next)
+      releaseDirections()
+      return next
+    })
+  }, [releaseDirections])
+
+  const changeOpacity = useCallback((val) => {
+    setOpacity(val)
+    localStorage.setItem(CONTROL_OPACITY_KEY, val)
+  }, [])
+
   if (!isTouch) return null
+
+  const baseOpacity = opacity
 
   return (
     <div style={{
       position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 200,
       pointerEvents: 'none',
       touchAction: 'none',
@@ -168,133 +182,290 @@ export default function MobileControls() {
       WebkitTouchCallout: 'none',
     }}>
 
-      {/* LEFT HALF — Joystick Zone */}
-      <div
-        ref={joystickRef}
-        onTouchStart={onJoystickTouchStart}
-        onTouchMove={onJoystickTouchMove}
-        onTouchEnd={onJoystickTouchEnd}
-        onTouchCancel={onJoystickTouchEnd}
-        style={{
+      {/* ── LEFT: Movement Controls ── */}
+      {controlType === 'analog' ? (
+        /* ANALOG JOYSTICK */
+        <div
+          ref={joystickRef}
+          onTouchStart={onJoystickTouchStart}
+          onTouchMove={onJoystickTouchMove}
+          onTouchEnd={onJoystickTouchEnd}
+          onTouchCancel={onJoystickTouchEnd}
+          style={{
+            position: 'absolute',
+            left: 0, top: '20%',
+            width: '45%', height: '80%',
+            pointerEvents: 'auto',
+            touchAction: 'none',
+          }}
+        >
+          {joystick && (
+            <>
+              <div style={{
+                position: 'fixed',
+                left: joystick.baseX - JOYSTICK_RADIUS,
+                top: joystick.baseY - JOYSTICK_RADIUS,
+                width: JOYSTICK_RADIUS * 2,
+                height: JOYSTICK_RADIUS * 2,
+                borderRadius: '50%',
+                background: `radial-gradient(circle, rgba(255,255,255,${0.06 * baseOpacity / 0.55}) 0%, rgba(255,255,255,${0.02 * baseOpacity / 0.55}) 100%)`,
+                border: `2px solid rgba(255,255,255,${0.2 * baseOpacity})`,
+                pointerEvents: 'none',
+              }} />
+              <div style={{
+                position: 'fixed',
+                left: joystick.knobX - KNOB_RADIUS,
+                top: joystick.knobY - KNOB_RADIUS,
+                width: KNOB_RADIUS * 2,
+                height: KNOB_RADIUS * 2,
+                borderRadius: '50%',
+                background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,${0.35 * baseOpacity}), rgba(255,255,255,${0.12 * baseOpacity}))`,
+                border: `2px solid rgba(255,255,255,${0.45 * baseOpacity})`,
+                boxShadow: `0 2px 10px rgba(0,0,0,${0.3 * baseOpacity})`,
+                pointerEvents: 'none',
+              }} />
+            </>
+          )}
+          {/* Static hint when not touching */}
+          {!joystick && (
+            <div style={{
+              position: 'absolute',
+              left: '50%', bottom: '25%',
+              transform: 'translateX(-50%)',
+              width: JOYSTICK_RADIUS * 2,
+              height: JOYSTICK_RADIUS * 2,
+              borderRadius: '50%',
+              border: `2px dashed rgba(255,255,255,${0.08 * baseOpacity / 0.55})`,
+              pointerEvents: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{
+                width: KNOB_RADIUS * 1.4,
+                height: KNOB_RADIUS * 1.4,
+                borderRadius: '50%',
+                background: `rgba(255,255,255,${0.04 * baseOpacity / 0.55})`,
+                border: `1px solid rgba(255,255,255,${0.08 * baseOpacity / 0.55})`,
+              }} />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* D-PAD */
+        <div style={{
           position: 'absolute',
-          left: 0,
-          top: 0,
-          width: '50%',
-          height: '100%',
+          left: 16, bottom: 20,
+          width: DPAD_SIZE, height: DPAD_SIZE,
           pointerEvents: 'auto',
           touchAction: 'none',
+          opacity: baseOpacity,
+        }}>
+          {/* Center cross bg */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'grid',
+            gridTemplateColumns: `${DPAD_BTN}px ${DPAD_BTN}px ${DPAD_BTN}px`,
+            gridTemplateRows: `${DPAD_BTN}px ${DPAD_BTN}px ${DPAD_BTN}px`,
+            gap: 2,
+          }}>
+            {/* Row 1: empty, UP, empty */}
+            <div />
+            <DpadButton dir="ArrowUp" onDown={onDpadDown} onUp={onDpadUp} label="▲" />
+            <div />
+            {/* Row 2: LEFT, center, RIGHT */}
+            <DpadButton dir="ArrowLeft" onDown={onDpadDown} onUp={onDpadUp} label="◄" />
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 4,
+            }} />
+            <DpadButton dir="ArrowRight" onDown={onDpadDown} onUp={onDpadUp} label="►" />
+            {/* Row 3: empty, DOWN, empty */}
+            <div />
+            <DpadButton dir="ArrowDown" onDown={onDpadDown} onUp={onDpadUp} label="▼" />
+            <div />
+          </div>
+        </div>
+      )}
+
+      {/* ── RIGHT: Bomb Button ── */}
+      <div
+        onTouchStart={onBombStart}
+        onTouchEnd={onBombEnd}
+        onTouchCancel={onBombEnd}
+        style={{
+          position: 'absolute',
+          right: 24, bottom: 40,
+          width: 68, height: 68,
+          borderRadius: '50%',
+          background: `radial-gradient(circle at 40% 35%, rgba(255,140,40,${0.7 * baseOpacity}), rgba(200,50,0,${0.5 * baseOpacity}))`,
+          border: `3px solid rgba(255,160,60,${0.75 * baseOpacity})`,
+          boxShadow: `0 0 20px rgba(255,100,0,${0.3 * baseOpacity}), inset 0 -3px 8px rgba(0,0,0,0.3)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
-        {/* Joystick visual — only shows when touching */}
-        {joystick && (
-          <>
-            {/* Base ring */}
-            <div style={{
-              position: 'fixed',
-              left: joystick.baseX - JOYSTICK_RADIUS,
-              top: joystick.baseY - JOYSTICK_RADIUS,
-              width: JOYSTICK_RADIUS * 2,
-              height: JOYSTICK_RADIUS * 2,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-              border: '2px solid rgba(255, 255, 255, 0.15)',
-              pointerEvents: 'none',
-            }} />
+        <span style={{ fontSize: 28, pointerEvents: 'none' }}>💣</span>
+      </div>
 
-            {/* Direction indicators on base */}
-            <div style={{
-              position: 'fixed',
-              left: joystick.baseX - JOYSTICK_RADIUS,
-              top: joystick.baseY - JOYSTICK_RADIUS,
-              width: JOYSTICK_RADIUS * 2,
-              height: JOYSTICK_RADIUS * 2,
-              pointerEvents: 'none',
-            }}>
-              {/* Up arrow */}
-              <div style={{ position: 'absolute', top: '6px', left: '50%', transform: 'translateX(-50%)', opacity: 0.2 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 4l-6 6h4v6h4v-6h4z"/></svg>
-              </div>
-              {/* Down arrow */}
-              <div style={{ position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)', opacity: 0.2 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 20l6-6h-4v-6h-4v6h-4z"/></svg>
-              </div>
-              {/* Left arrow */}
-              <div style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', opacity: 0.2 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M4 12l6-6v4h6v4h-6v4z"/></svg>
-              </div>
-              {/* Right arrow */}
-              <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', opacity: 0.2 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20 12l-6 6v-4h-6v-4h6v-4z"/></svg>
-              </div>
+      {/* ── MOBILE STATS (compact, positioned above bomb button) ── */}
+      {hudData && (
+        <div style={{
+          position: 'absolute',
+          right: 10, bottom: 118,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          fontFamily: '"Rajdhani", "Outfit", sans-serif',
+          fontSize: '10px',
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          pointerEvents: 'none',
+          opacity: baseOpacity * 0.85,
+          alignItems: 'flex-end',
+        }}>
+          <span style={{ color: '#f0c040' }}>💣{hudData.maxBombs || 1}</span>
+          <span style={{ color: '#ff7040' }}>🔥{hudData.fireRange || 1}</span>
+          <span style={{ color: '#00e87a' }}>⚡{hudData.speed || 1}</span>
+          {hudData.skullEffect && (
+            <span style={{ color: '#ff2020', animation: 'pulseGlow 0.6s infinite' }}>☠</span>
+          )}
+          {hudData.gateOpen && (
+            <span style={{ color: '#f0c040' }}>★</span>
+          )}
+        </div>
+      )}
+
+      {/* ── SETTINGS TOGGLE (tiny gear in bottom center) ── */}
+      <div
+        onClick={() => setShowSettings(p => !p)}
+        style={{
+          position: 'absolute',
+          bottom: 4, left: '50%',
+          transform: 'translateX(-50%)',
+          width: 26, height: 26,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '11px',
+          opacity: 0.4,
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        ⚙
+      </div>
+
+      {/* ── SETTINGS PANEL (inline, minimal) ── */}
+      {showSettings && (
+        <div style={{
+          position: 'absolute',
+          bottom: 36, left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(6,6,16,0.92)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 10,
+          padding: '10px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          fontFamily: '"Rajdhani", "Outfit", sans-serif',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#ccc',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          zIndex: 210,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          minWidth: 180,
+        }}>
+          {/* Control type */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', fontSize: '9px' }}>CONTROLS</span>
+            <div
+              onClick={cycleControlType}
+              style={{
+                background: 'rgba(0,212,255,0.1)',
+                border: '1px solid rgba(0,212,255,0.3)',
+                borderRadius: 5,
+                padding: '3px 10px',
+                color: '#00d4ff',
+                cursor: 'pointer',
+                fontSize: '10px',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {controlType === 'analog' ? 'ANALOG' : 'D-PAD'}
             </div>
+          </div>
+          {/* Opacity */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', fontSize: '9px' }}>OPACITY</span>
+            <input
+              type="range"
+              min="0.2" max="1.0" step="0.05"
+              value={opacity}
+              onChange={(e) => changeOpacity(parseFloat(e.target.value))}
+              style={{
+                width: 80, height: 4,
+                accentColor: '#00d4ff',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
+          {/* Close */}
+          <div
+            onClick={() => setShowSettings(false)}
+            style={{
+              textAlign: 'center',
+              color: 'rgba(255,255,255,0.3)',
+              fontSize: '8px',
+              letterSpacing: '0.15em',
+              cursor: 'pointer',
+              padding: '2px 0',
+            }}
+          >
+            TAP TO CLOSE
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
-            {/* Knob (thumb) */}
-            <div style={{
-              position: 'fixed',
-              left: joystick.knobX - KNOB_RADIUS,
-              top: joystick.knobY - KNOB_RADIUS,
-              width: KNOB_RADIUS * 2,
-              height: KNOB_RADIUS * 2,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.35), rgba(255,255,255,0.12))',
-              border: '2px solid rgba(255, 255, 255, 0.4)',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-              pointerEvents: 'none',
-              transition: 'none',
-            }} />
-          </>
-        )}
-      </div>
+// ── D-Pad Button Component ──
+function DpadButton({ dir, onDown, onUp, label }) {
+  const [pressed, setPressed] = useState(false)
 
-      {/* RIGHT SIDE — Action Buttons */}
-      <div style={{
-        position: 'absolute',
-        right: '20px',
-        bottom: '40px',
-        pointerEvents: 'auto',
-        touchAction: 'none',
+  return (
+    <div
+      onTouchStart={(e) => { setPressed(true); onDown(dir)(e) }}
+      onTouchEnd={(e) => { setPressed(false); onUp(dir)(e) }}
+      onTouchCancel={(e) => { setPressed(false); onUp(dir)(e) }}
+      style={{
+        background: pressed
+          ? 'rgba(0,212,255,0.25)'
+          : 'rgba(255,255,255,0.08)',
+        border: pressed
+          ? '1.5px solid rgba(0,212,255,0.6)'
+          : '1.5px solid rgba(255,255,255,0.15)',
+        borderRadius: 6,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: '8px',
-      }}>
-        {/* Bomb Button */}
-        <div
-          onTouchStart={onBombStart}
-          onTouchEnd={onBombEnd}
-          onTouchCancel={onBombEnd}
-          style={{
-            width: '76px',
-            height: '76px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, rgba(255, 130, 40, 0.65), rgba(180, 40, 0, 0.5))',
-            border: '3px solid rgba(255, 160, 60, 0.7)',
-            boxShadow: '0 0 24px rgba(255, 100, 0, 0.35), inset 0 -4px 10px rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '30px',
-            userSelect: 'none',
-            touchAction: 'none',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >💣</div>
-      </div>
-
-      {/* Subtle hint text */}
-      <div style={{
-        position: 'absolute',
-        bottom: '6px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: '7px',
-        color: 'rgba(255,255,255,0.15)',
-        fontFamily: '"Press Start 2P", monospace',
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap',
-      }}>
-        DRAG TO MOVE · TAP 💣 TO BOMB
-      </div>
+        justifyContent: 'center',
+        fontSize: '14px',
+        color: pressed ? '#00d4ff' : 'rgba(255,255,255,0.4)',
+        touchAction: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        transition: 'background 0.05s, border-color 0.05s',
+      }}
+    >
+      {label}
     </div>
   )
 }

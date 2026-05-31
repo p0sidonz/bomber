@@ -18,6 +18,16 @@
       "scopes": ["profile", "email"],
       "serverClientId": "992048408581-o5da8d4g4k8e0d8rspgb7smu16c2gbb1.apps.googleusercontent.com",
       "forceCodeForRefreshToken": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#04040e",
+      "overlaysWebView": true
     }
+  },
+  "android": {
+    "overrideUserAgent": "OmegaArena",
+    "backgroundColor": "#04040e",
+    "allowMixedContent": true
   }
 }

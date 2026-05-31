@@ -185,6 +185,25 @@ export function checkPortalGates(player, gates) {
   return false
 }
 
+// ─── FIND SAFE SPAWN NEAR TILE ────────────────────────────────────────────────
+// Used after teleport to avoid placing player inside a wall
+export function findSafeTileNear(grid, tx, ty, bombs = []) {
+  const dummyPlayer = { powerups: [], wallPassTimer: 0 }
+  // Check target first, then spiral outwards
+  const offsets = [
+    [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],
+    [1, 1], [-1, 1], [1, -1], [-1, -1],
+    [2, 0], [-2, 0], [0, 2], [0, -2],
+  ]
+  for (const [dx, dy] of offsets) {
+    const nx = tx + dx, ny = ty + dy
+    if (isWalkable(grid, nx, ny, dummyPlayer, bombs)) {
+      return { x: nx, y: ny }
+    }
+  }
+  return { x: tx, y: ty } // fallback
+}
+
 // ─── INTERPOLATION (client-side) ──────────────────────────────────────────────
 export function interpolateStates(prevState, nextState, alpha) {
   if (!prevState || !nextState) return nextState

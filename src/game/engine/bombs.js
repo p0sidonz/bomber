@@ -114,11 +114,29 @@ export function detonateBomb(state, bombId) {
             state.powerupsOnMap.push({ x: ex, y: ey, type: state.powerupType || 'extrabomb' })
             state.hiddenPowerupTile = null
           }
-        }
-        if (state.hiddenEggTile && state.hiddenEggTile[0] === ex && state.hiddenEggTile[1] === ey) {
+        } else if (state.hiddenEggTile && state.hiddenEggTile[0] === ex && state.hiddenEggTile[1] === ey) {
           if (state.grid[ey][ex] !== TILE.GATE) {
             state.powerupsOnMap.push({ x: ex, y: ey, type: 'egg' })
             state.hiddenEggTile = null
+          }
+        } else if (state.grid[ey][ex] !== TILE.GATE) {
+          // Random powerup drop — 20% chance on any other soft block
+          // This ensures every level has plenty of discoverable powerups
+          if (Math.random() < 0.20) {
+            const level = state.level || 1
+            // Scale powerup pool by level — early = basic, later = more variety
+            let pwPool
+            if (level <= 3) {
+              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP]
+            } else if (level <= 8) {
+              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.EXTRA_BOMB]
+            } else if (level <= 15) {
+              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.FULL_FIRE, POWERUP.REMOTE]
+            } else {
+              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.FULL_FIRE, POWERUP.REMOTE, POWERUP.CLOCK, POWERUP.MYSTERY]
+            }
+            const type = pwPool[Math.floor(Math.random() * pwPool.length)]
+            state.powerupsOnMap.push({ x: ex, y: ey, type })
           }
         }
       } else {
@@ -281,8 +299,8 @@ export function killPlayer(state, userId, killerId) {
   if (state.mode === 'multiplayer') {
     player.lives = (player.lives || 3) - 1
     if (player.lives > 0) {
-      // Set respawn timer (2 seconds = 40 ticks at 20tps)
-      player.respawnTimer = 40
+      // Set respawn timer (3 seconds = 60 ticks at 20tps)
+      player.respawnTimer = 60
     }
   }
 }

@@ -4,10 +4,10 @@ import { showInterstitialAd } from '../admob'
 import { playBGM } from '../game/audio/audio'
 
 const MENU_ITEMS = [
-  { id: 'classic', label: '▶ PLAY CLASSIC', desc: '50 LEVELS · SOLO' },
-  { id: 'create', label: '⊕ CREATE ROOM', desc: 'HOST MULTIPLAYER' },
-  { id: 'join', label: '⊞ JOIN ROOM', desc: 'ENTER ROOM CODE' },
-  { id: 'leaderboard', label: '🏆 LEADERBOARD', desc: 'TOP PLAYERS' },
+  { id: 'classic', label: '▶ ENGAGE SOLO MODE', desc: '50 LEVELS · SINGLE PILOT' },
+  { id: 'create', label: '⊕ DEPLOY ARENA', desc: 'HOST MULTIPLAYER' },
+  { id: 'join', label: '⊞ JOIN ARENA', desc: 'ENTER ACCESS CODE' },
+  { id: 'leaderboard', label: '🏆 WAR RECORDS', desc: 'TOP PILOTS' },
 ]
 
 export default function LandingScreen({ user, nav }) {
@@ -19,24 +19,22 @@ export default function LandingScreen({ user, nav }) {
   const joinInputRef = useRef(null)
   
   const isGuest = user?.isGuest
-  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'PLAYER'
+  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'PILOT'
   const color = user?.user_metadata?.color || 'yellow'
 
   const COLOR_HEX = {
-    red: '#e03040', blue: '#3060e0', green: '#30c060',
-    yellow: '#f0c040', purple: '#9040c0', orange: '#e08030',
+    red: '#ff2244', blue: '#2288ff', green: '#00e87a',
+    yellow: '#ffcc00', purple: '#cc44ff', orange: '#ff7720',
+    white: '#dde8ff',
   }
 
   useEffect(() => {
-    // Show an ad when the app lands on the main menu, max once per hour
     const lastAdTime = localStorage.getItem('last_app_open_ad_time')
     const now = Date.now()
     if (!lastAdTime || now - parseInt(lastAdTime) > 60 * 60 * 1000) {
       showInterstitialAd()
       localStorage.setItem('last_app_open_ad_time', now.toString())
     }
-    
-    // Play menu music (will play if user has already interacted with the page)
     playBGM('menu')
   }, [])
 
@@ -66,8 +64,6 @@ export default function LandingScreen({ user, nav }) {
       setLoading(true)
       try {
         const room = await createRoom(user.id)
-        // Also insert host as player
-        const { joinRoomByCode: joinFn, supabase } = await import('../supabase')
         await import('../supabase').then(m =>
           m.supabase.from('room_players').insert({
             room_id: room.id,
@@ -105,39 +101,68 @@ export default function LandingScreen({ user, nav }) {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full bg-bm-dark relative overflow-y-auto flex flex-col items-center justify-center py-8">
-      {/* Animated background grid */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(0deg, #f0c040 0, #f0c040 1px, transparent 1px, transparent 48px), repeating-linear-gradient(90deg, #f0c040 0, #f0c040 1px, transparent 1px, transparent 48px)',
+    <div className="min-h-[100dvh] w-full relative overflow-y-auto flex flex-col items-center justify-center py-8"
+      style={{ background: 'radial-gradient(ellipse at 50% 30%, #0a0a2e 0%, #060610 60%, #030308 100%)' }}
+    >
+      {/* Animated space grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `
+          repeating-linear-gradient(0deg, rgba(0,180,255,0.05) 0, rgba(0,180,255,0.05) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg, rgba(0,180,255,0.05) 0, rgba(0,180,255,0.05) 1px, transparent 1px, transparent 48px)
+        `,
         backgroundSize: '48px 48px',
+      }} />
+      {/* Top glow */}
+      <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(100,0,255,0.12) 0%, transparent 70%)',
       }} />
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-3 border-b border-bm-border">
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-3"
+        style={{ borderBottom: '1px solid rgba(0,180,255,0.15)', background: 'rgba(6,6,16,0.8)', backdropFilter: 'blur(12px)' }}
+      >
         <div className="flex items-center gap-3">
           <div
             className="w-3 h-3 rounded-full"
-            style={{ background: COLOR_HEX[color], boxShadow: `0 0 8px ${COLOR_HEX[color]}` }}
+            style={{ background: COLOR_HEX[color], boxShadow: `0 0 12px ${COLOR_HEX[color]}` }}
           />
-          <span className="text-[8px] text-bm-accent">{displayName}</span>
+          <span style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontWeight: 700, fontSize: 13, letterSpacing: '0.1em', color: COLOR_HEX[color] }}>
+            {displayName}
+          </span>
         </div>
         <button
-          className="text-[7px] text-gray-500 hover:text-bm-red transition-colors"
+          style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 11, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}
+          className="hover:text-red-400 transition-colors"
           onClick={async () => { await signOut(); nav('auth') }}
         >
-          LOGOUT
+          DISCONNECT
         </button>
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-8 w-full max-w-lg px-4">
         {/* Logo */}
         <div className="text-center">
-          <BombAnimation />
-          <h1 className="logo-text text-3xl mt-4">BombRush Arena</h1>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-bm-accent opacity-30" />
-            <span className="text-[7px] text-gray-500 tracking-widest">BLAST YOUR WAY TO GLORY</span>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-bm-accent opacity-30" />
+          <PlasmaAnimation />
+          <h1 style={{
+            fontFamily: 'Rajdhani,Outfit,sans-serif',
+            fontWeight: 900,
+            fontSize: 'clamp(32px, 8vw, 56px)',
+            letterSpacing: '0.12em',
+            background: 'linear-gradient(135deg, #00d4ff 0%, #7744ff 40%, #ff44ff 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            filter: 'drop-shadow(0 0 30px rgba(100,0,255,0.5))',
+            marginTop: 12,
+          }}>
+            NOVA STRIKE
+          </h1>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(0,212,255,0.4))' }} />
+            <span style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 11, letterSpacing: '0.2em', color: 'rgba(0,212,255,0.5)' }}>
+              DOMINATE THE GRID
+            </span>
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, rgba(0,212,255,0.4))' }} />
           </div>
         </div>
 
@@ -146,25 +171,35 @@ export default function LandingScreen({ user, nav }) {
           <div className="w-full space-y-2">
             {MENU_ITEMS.map((item, i) => {
               const isDisabled = isGuest && ['create', 'join', 'leaderboard'].includes(item.id)
+              const isSelected = selected === i
               return (
                 <button
                   key={item.id}
                   id={`menu-${item.id}`}
-                  className={`w-full text-left p-4 border-2 transition-all duration-150 flex items-center justify-between group ${
-                    isDisabled 
-                      ? 'border-gray-800 bg-gray-900/50 text-gray-600 cursor-not-allowed opacity-60'
-                      : selected === i
-                        ? 'border-bm-accent bg-bm-accent/10 text-bm-accent'
-                        : 'border-bm-border text-gray-400 hover:border-bm-accent/50 hover:text-gray-200'
-                  }`}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '14px 20px',
+                    border: `1.5px solid ${isDisabled ? 'rgba(255,255,255,0.05)' : isSelected ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                    background: isDisabled ? 'rgba(255,255,255,0.02)' : isSelected ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.02)',
+                    borderRadius: 10,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    opacity: isDisabled ? 0.4 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s',
+                    boxShadow: isSelected ? '0 0 20px rgba(0,212,255,0.15), inset 0 1px 0 rgba(0,212,255,0.1)' : 'none',
+                    fontFamily: 'Rajdhani,Outfit,sans-serif',
+                  }}
                   onClick={() => handleSelect(item.id)}
                   onMouseEnter={() => !isDisabled && setSelected(i)}
                 >
-                  <span className="text-[10px]">
+                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: isSelected ? '#00d4ff' : '#ccc' }}>
                     {item.label}
-                    {isDisabled && <span className="text-[6px] text-bm-red ml-2 tracking-widest">(LOGIN REQ)</span>}
+                    {isDisabled && <span style={{ fontSize: 10, color: '#ff2244', marginLeft: 8, letterSpacing: '0.1em' }}>(LOGIN REQ)</span>}
                   </span>
-                  <span className={`text-[7px] ${isDisabled ? 'text-gray-700' : 'text-gray-600 group-hover:text-gray-400'}`}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>
                     {item.desc}
                   </span>
                 </button>
@@ -173,54 +208,100 @@ export default function LandingScreen({ user, nav }) {
           </div>
         ) : (
           <div className="w-full panel animate-slide-in">
-            <h2 className="text-[9px] text-bm-accent mb-4">ENTER ROOM CODE</h2>
+            <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 14, fontWeight: 700, letterSpacing: '0.15em', color: '#00d4ff', marginBottom: 16 }}>
+              ENTER ACCESS CODE
+            </h2>
             <form onSubmit={handleJoin} className="space-y-3">
               <input
                 ref={joinInputRef}
                 className="input-pixel text-center text-xl tracking-widest uppercase"
-                placeholder="BOM247"
+                placeholder="NS-A247"
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
               />
-              {error && <p className="text-[8px] text-bm-red">⚠ {error}</p>}
+              {error && <p style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 12, color: '#ff2244' }}>⚠ {error}</p>}
               <div className="flex gap-2">
                 <button type="submit" className="btn-pixel btn-primary flex-1" disabled={loading}>
-                  {loading ? '...' : 'JOIN →'}
+                  {loading ? '...' : 'ENTER →'}
                 </button>
                 <button type="button" className="btn-pixel flex-1" onClick={() => { setShowJoin(false); setError('') }}>
-                  BACK
+                  ABORT
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {error && !showJoin && <p className="text-[8px] text-bm-red">⚠ {error}</p>}
+        {error && !showJoin && <p style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 12, color: '#ff2244' }}>⚠ {error}</p>}
 
-        <p className="text-[7px] text-gray-700">↑↓ NAVIGATE · ENTER SELECT</p>
+        <p style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.12em' }}>
+          ↑↓ NAVIGATE  ·  ENTER CONFIRM
+        </p>
       </div>
 
       {/* Legal Footer */}
-      <div className="relative z-20 w-full flex flex-wrap justify-center items-center gap-x-4 gap-y-2 px-4 text-[8px] sm:text-[10px] text-gray-500 font-['Inter',sans-serif] mt-12 pb-4">
-        <a href="#privacy" className="hover:text-bm-accent transition-colors">Privacy Policy</a>
-        <span className="hidden sm:inline">|</span>
-        <a href="#tos" className="hover:text-bm-accent transition-colors">Terms of Service</a>
-        <span className="hidden sm:inline">|</span>
-        <a href="#contact" className="hover:text-bm-accent transition-colors">Contact</a>
-        <span className="hidden sm:inline">|</span>
-        <a href="#delete-account" className="hover:text-bm-red transition-colors">Delete Account</a>
+      <div className="relative z-20 w-full flex flex-wrap justify-center items-center gap-x-4 gap-y-2 px-4 mt-12 pb-4"
+        style={{ fontFamily: 'Outfit,sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.2)' }}
+      >
+        <a href="#privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
+        <span className="hidden sm:inline opacity-30">|</span>
+        <a href="#tos" className="hover:text-blue-400 transition-colors">Terms of Service</a>
+        <span className="hidden sm:inline opacity-30">|</span>
+        <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
+        <span className="hidden sm:inline opacity-30">|</span>
+        <a href="#delete-account" className="hover:text-red-400 transition-colors">Delete Account</a>
       </div>
     </div>
   )
 }
 
-// Animated bomb logo component
-function BombAnimation() {
+// Animated plasma orb logo
+function PlasmaAnimation() {
   return (
-    <div className="relative inline-block">
-      <div className="text-6xl animate-bounce" style={{ animationDuration: '2s' }}>💣</div>
-      <div className="absolute -top-1 -right-1 w-3 h-3 bg-bm-red rounded-full animate-ping opacity-75" />
+    <div className="relative inline-block" style={{ width: 72, height: 72 }}>
+      {/* Outer glow rings */}
+      <div style={{
+        position: 'absolute', inset: -8,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(100,0,255,0.3) 0%, rgba(0,100,255,0.15) 50%, transparent 70%)',
+        animation: 'pulseGlow 2s ease-in-out infinite',
+      }} />
+      {/* Main plasma orb */}
+      <div style={{
+        width: 72, height: 72,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle at 35% 35%, #aaccff 0%, #4466ff 30%, #1100aa 60%, #050520 100%)',
+        boxShadow: '0 0 30px rgba(80,0,255,0.6), 0 0 60px rgba(80,0,255,0.3), inset 0 2px 8px rgba(255,255,255,0.3)',
+        animation: 'pulseGlow 1.8s ease-in-out infinite',
+        position: 'relative',
+      }}>
+        {/* Specular gloss */}
+        <div style={{
+          position: 'absolute', top: 14, left: 16,
+          width: 20, height: 12,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.45)',
+          transform: 'rotate(-20deg)',
+        }} />
+      </div>
+      {/* Orbiting energy spark */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        width: 8, height: 8, marginTop: -4, marginLeft: -4,
+        borderRadius: '50%',
+        background: '#00ffff',
+        boxShadow: '0 0 12px #00ffff',
+        animation: 'orbit 1.5s linear infinite',
+        transformOrigin: '40px 4px',
+      }} />
+      <style>{`
+        @keyframes orbit {
+          from { transform: rotate(0deg) translateX(36px); }
+          to { transform: rotate(360deg) translateX(36px); }
+        }
+      `}</style>
     </div>
   )
 }
+

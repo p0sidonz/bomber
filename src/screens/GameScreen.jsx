@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { generateMultiplayerZones } from '../game/levels/generator.js'
 import { createInitialState, TILE } from '../game/engine/state.js'
-import { movePlayer, updateSlidingBombs } from '../game/engine/physics.js'
+import { movePlayer, updateSlidingBombs, findSafeTileNear } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups } from '../game/engine/bombs.js'
 import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM, toggleMute, getIsMuted } from '../game/audio/audio.js'
 import { subscribeGame, unsubscribeGame, broadcastInput, broadcastState } from '../game/multiplayer/channels.js'
 import { getRoomPlayers } from '../supabase.js'
+import { adOnQuit, adOnGameOver } from '../admob.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
@@ -147,12 +148,14 @@ export default function GameScreen({ user, room, nav }) {
           player.powerups = []
           player.speed = 8
           player.activeBombs = 0
-          // 2-second invincibility shield (40 ticks at 20tps)
-          player.shieldTimer = 40
+          // 3-second invincibility shield (60 ticks at 20tps)
+          player.shieldTimer = 60
           
-          // Re-spawn at their original zone spawn
+          // Re-spawn at their original zone spawn, ensure it's a walkable tile
           const spawn = state.spawnPoints?.[player.slot - 1] || { x: 1, y: 1 }
-          player.x = spawn.x; player.y = spawn.y; player.px = spawn.x * 48; player.py = spawn.y * 48
+          const safeSpawn = findSafeTileNear(state.grid, spawn.x, spawn.y, state.bombs)
+          player.x = safeSpawn.x; player.y = safeSpawn.y
+          player.px = safeSpawn.x * 48; player.py = safeSpawn.y * 48
           player.zone = player.slot - 1
         }
       }
@@ -180,6 +183,8 @@ export default function GameScreen({ user, room, nav }) {
         color: p.color,
         kills: p.kills || 0,
         alive: p.alive,
+        lives: p.lives ?? 3,
+        respawning: (p.respawnTimer || 0) > 0,
       })),
     })
   }
@@ -207,18 +212,18 @@ export default function GameScreen({ user, room, nav }) {
       for (const portal of state.portals || []) {
         if (!portal.revealed) continue
         if (player.x === portal.x && player.y === portal.y) {
-          // Teleport to target zone's portal position
-          player.x = portal.targetX
-          player.y = portal.targetY
-          player.px = portal.targetX * 48
-          player.py = portal.targetY * 48
+          // Find a safe tile at the destination (avoid landing inside walls)
+          const safe = findSafeTileNear(state.grid, portal.targetX, portal.targetY, state.bombs)
+          player.x = safe.x
+          player.y = safe.y
+          player.px = safe.x * 48
+          player.py = safe.y * 48
           player.zone = portal.targetZone
           // Long cooldown to prevent bounce-back: 3 seconds (60 ticks at 20tps)
-          // Player must move off the destination portal before they can teleport again
           player.teleportCooldown = 60
           
-          // Also give them a brief invincibility shield
-          player.shieldTimer = Math.max(player.shieldTimer || 0, 40)
+          // Give them a 3-second invincibility shield after teleport
+          player.shieldTimer = Math.max(player.shieldTimer || 0, 60)
           break
         }
       }
@@ -258,9 +263,11 @@ export default function GameScreen({ user, room, nav }) {
     }
 
     // Fallback: last player alive wins
-    if (alive.length <= 1 && Object.values(state.players).length > 1) {
+    // Count players who are either alive OR waiting to respawn (respawnTimer > 0)
+    const stillInGame = Object.values(state.players).filter(p => p.alive || (p.respawnTimer || 0) > 0)
+    if (stillInGame.length <= 1 && Object.values(state.players).length > 1) {
       state.status = 'finished'
-      state.winner = alive[0]?.userId || null
+      state.winner = alive[0]?.userId || stillInGame[0]?.userId || null
       setGameOver(true)
       stopBGM()
       setTimeout(() => nav('results', { result: buildResult(state) }), 2000)
@@ -300,7 +307,10 @@ export default function GameScreen({ user, room, nav }) {
         prevStateRef.current = stateRef.current
         stateRef.current = newState
         const me = newState.players?.[myUserId]
-        if (me && !me.alive && !spectating) setSpectating(true)
+        // Only set spectating if player is dead AND has no pending respawn
+        if (me && !me.alive && (me.respawnTimer || 0) <= 0 && !spectating) setSpectating(true)
+        // Clear spectating flag if player respawned
+        if (me && me.alive && spectating) setSpectating(false)
         if (newState.status === 'finished' && !gameOver) {
           setGameOver(true)
           stopBGM()
@@ -440,6 +450,7 @@ export default function GameScreen({ user, room, nav }) {
             </button>
             <button className="btn-pixel btn-danger w-full py-4" onClick={() => {
               if (window.confirm("Quit to Lobby? You will leave the current game.")) {
+                adOnQuit() // AdMob Trigger: Left multiplayer game
                 nav('lobby', { room })
               }
             }}>

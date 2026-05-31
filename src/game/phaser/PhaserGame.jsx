@@ -42,10 +42,12 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
       parent: containerRef.current,
       width: 1280,
       height: 720,
-      backgroundColor: '#0a0a14',
+      backgroundColor: '#060610',
       pixelArt: false,
       antialias: true,
+      antialiasGL: true,
       roundPixels: false,
+      smoothStepInterpolation: true,
       scale: {
         mode: Phaser.Scale.ENVELOP,
         autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -89,44 +91,57 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
         {mode === 'singleplayer' && hudData && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: isMobile ? '6px 12px' : '8px 24px',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 80%, transparent 100%)',
-            fontFamily: '"Press Start 2P", monospace',
-            fontSize: isMobile ? '7px' : '9px',
+            padding: isMobile ? '6px 14px' : '10px 28px',
+            background: 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.6) 70%, transparent 100%)',
+            fontFamily: '"Rajdhani", "Outfit", sans-serif',
+            fontSize: isMobile ? '13px' : '16px',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
             flexWrap: 'nowrap',
-            gap: isMobile ? '8px' : '16px',
+            gap: isMobile ? '10px' : '20px',
           }}>
-            <div style={{ display: 'flex', gap: isMobile ? '8px' : '20px', alignItems: 'center', minWidth: 0 }}>
-              <div style={{ whiteSpace: 'nowrap' }}>
-                <span style={{ color: '#909090', fontSize: isMobile ? '6px' : '7px' }}>TIME </span>
+            {/* Left: Timer + Enemies */}
+            <div style={{ display: 'flex', gap: isMobile ? '12px' : '24px', alignItems: 'center', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>TIME</span>
                 <span style={{
-                  color: hudData.timerTicks < 600 ? '#ff4040' : '#ffffff',
+                  color: hudData.timerTicks < 600 ? '#ff4444' : '#ffffff',
+                  textShadow: hudData.timerTicks < 600 ? '0 0 12px #ff4444' : 'none',
+                  fontWeight: 700,
                 }}>{hudData.timerStr}</span>
               </div>
-              <div style={{ whiteSpace: 'nowrap' }}>
-                <span style={{ color: '#909090', fontSize: isMobile ? '6px' : '7px' }}>EN </span>
-                <span style={{ color: '#ff8040' }}>{hudData.enemyCount}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>ENEMIES</span>
+                <span style={{ color: '#ff7040', fontWeight: 700 }}>{hudData.enemyCount}</span>
               </div>
             </div>
 
+            {/* Center: Level */}
             <div style={{
+              background: 'rgba(240,192,64,0.1)',
+              border: '1px solid rgba(240,192,64,0.3)',
+              borderRadius: 8,
+              padding: isMobile ? '2px 10px' : '3px 14px',
               color: '#f0c040',
-              textShadow: '0 0 8px #f0c04080',
-              whiteSpace: 'nowrap',
+              textShadow: '0 0 12px rgba(240,192,64,0.6)',
+              fontSize: isMobile ? '14px' : '18px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
               flexShrink: 0,
             }}>
               LV {String(hudData.level || 1).padStart(2, '0')}
             </div>
 
-            <div style={{ display: 'flex', gap: isMobile ? '8px' : '20px', alignItems: 'center', minWidth: 0 }}>
-              <div style={{ whiteSpace: 'nowrap' }}>
-                <span style={{ color: '#909090', fontSize: isMobile ? '6px' : '7px' }}>SC </span>
-                <span style={{ color: '#f0c040' }}>{String(hudData.score || 0).padStart(6, '0')}</span>
+            {/* Right: Score + Lives */}
+            <div style={{ display: 'flex', gap: isMobile ? '12px' : '24px', alignItems: 'center', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: isMobile ? '10px' : '12px', letterSpacing: '0.1em' }}>SCORE</span>
+                <span style={{ color: '#f0c040', fontWeight: 700 }}>{String(hudData.score || 0).padStart(6, '0')}</span>
               </div>
-              <div style={{ whiteSpace: 'nowrap' }}>
-                <span style={{ color: '#ff4040', fontSize: isMobile ? '10px' : '12px' }}>
-                  {'♥'.repeat(Math.max(0, hudData.lives || 0))}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {Array.from({ length: Math.max(0, hudData.lives || 0) }).map((_, i) => (
+                  <span key={i} style={{ color: '#ff3355', fontSize: isMobile ? '12px' : '15px', textShadow: '0 0 8px #ff3355' }}>♥</span>
+                ))}
               </div>
             </div>
           </div>
@@ -134,29 +149,54 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
 
         {mode === 'multiplayer' && hudData && (
           <div style={{
-            display: 'flex', justifyContent: 'center', gap: isMobile ? '12px' : '28px', alignItems: 'center',
-            padding: isMobile ? '6px 12px' : '8px 24px',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 80%, transparent 100%)',
-            fontFamily: '"Press Start 2P", monospace',
+            display: 'flex', justifyContent: 'center', gap: isMobile ? '16px' : '32px', alignItems: 'center',
+            padding: isMobile ? '6px 14px' : '10px 28px',
+            background: 'linear-gradient(180deg, rgba(6,6,16,0.95) 0%, rgba(6,6,16,0.5) 70%, transparent 100%)',
+            fontFamily: '"Rajdhani", "Outfit", sans-serif',
+            fontWeight: 600,
           }}>
             {(hudData.players || []).map(p => (
-              <div key={p.userId} style={{ textAlign: 'center', opacity: p.alive ? 1 : 0.4 }}>
+              <div key={p.userId} style={{
+                textAlign: 'center',
+                opacity: (p.alive || p.respawning) ? 1 : 0.3,
+                transition: 'opacity 0.3s',
+              }}>
+                {/* Color dot */}
                 <div style={{
-                  width: 10, height: 10, margin: '0 auto 3px',
+                  width: 12, height: 12, margin: '0 auto 4px',
                   backgroundColor: p.color || '#fff',
-                  border: p.alive ? '2px solid #fff' : '2px solid #555',
-                  borderRadius: 2,
+                  borderRadius: '50%',
+                  boxShadow: p.alive ? `0 0 8px ${p.color || '#fff'}` : p.respawning ? '0 0 8px #ffaa00' : 'none',
+                  border: p.respawning ? '2px solid #ffaa00' : 'none',
                 }} />
-                <div style={{ fontSize: '6px', color: '#fff' }}>{(p.name || '').substring(0, 5)}</div>
-                <div style={{ fontSize: '6px', color: '#f0c040' }}>×{p.kills || 0}</div>
+                <div style={{ fontSize: isMobile ? '9px' : '11px', color: '#fff', letterSpacing: '0.05em' }}>{(p.name || '').substring(0, 6).toUpperCase()}</div>
+                <div style={{ fontSize: isMobile ? '9px' : '11px', color: '#f0c040' }}>×{p.kills || 0} KO</div>
+                {/* Lives */}
+                <div style={{ fontSize: isMobile ? '10px' : '12px', marginTop: 2 }}>
+                  {p.respawning
+                    ? <span style={{ color: '#ffaa00', fontSize: '14px' }}>↺</span>
+                    : Array.from({ length: Math.max(0, p.lives ?? 3) }).map((_, i) => (
+                        <span key={i} style={{ color: '#ff3355', textShadow: '0 0 6px #ff3355' }}>♥</span>
+                      ))
+                  }
+                </div>
               </div>
             ))}
+            {/* Timer */}
             <div style={{
-              color: hudData.timerTicks < 400 ? '#ff4040' : '#f0c040',
-              fontSize: isMobile ? '10px' : '13px', marginLeft: 8,
+              background: 'rgba(240,192,64,0.1)',
+              border: '1px solid rgba(240,192,64,0.25)',
+              borderRadius: 8,
+              padding: isMobile ? '2px 10px' : '3px 14px',
+              color: hudData.timerTicks < 400 ? '#ff4444' : '#f0c040',
+              textShadow: hudData.timerTicks < 400 ? '0 0 12px #ff4444' : '0 0 8px rgba(240,192,64,0.5)',
+              fontSize: isMobile ? '14px' : '20px',
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              marginLeft: 8,
             }}>{hudData.timerStr}</div>
             <div 
-              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', pointerEvents: 'auto', fontSize: isMobile ? '14px' : '16px' }}
+              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', pointerEvents: 'auto', fontSize: isMobile ? '16px' : '18px', opacity: 0.6 }}
               onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
             >
               ⚙️
@@ -165,36 +205,53 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
         )}
       </div>
 
-      {/* ─── BOTTOM STATS BAR (singleplayer) — avoid mobile controls area ─── */}
+      {/* ─── BOTTOM STATS BAR (singleplayer) ─── */}
       {mode === 'singleplayer' && hudData && (
         <div style={{
           position: 'absolute',
-          bottom: isMobile ? '5px' : '10px',
+          bottom: isMobile ? '6px' : '12px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: isMobile ? 12 : 20,
-          fontFamily: '"Press Start 2P", monospace',
-          background: 'rgba(0,0,0,0.55)',
-          padding: isMobile ? '4px 10px' : '6px 16px',
-          borderRadius: 8,
-          fontSize: isMobile ? '7px' : '8px',
+          gap: isMobile ? 10 : 16,
+          alignItems: 'center',
+          fontFamily: '"Rajdhani", "Outfit", sans-serif',
+          fontSize: isMobile ? '12px' : '14px',
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          background: 'rgba(6,6,16,0.8)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          padding: isMobile ? '5px 12px' : '7px 18px',
+          borderRadius: 10,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           pointerEvents: 'none',
           zIndex: 10,
           whiteSpace: 'nowrap',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         }}>
-          <span style={{ color: '#f0c040' }}>B×{hudData.maxBombs || 1}</span>
-          <span style={{ color: '#ff6020' }}>F×{hudData.fireRange || 1}</span>
-          <span style={{ color: '#40c040' }}>S×{hudData.speed || 1}</span>
+          <span style={{ color: '#f0c040', textShadow: '0 0 8px rgba(240,192,64,0.4)' }}>💣 {hudData.maxBombs || 1}</span>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+          <span style={{ color: '#ff7040', textShadow: '0 0 8px rgba(255,112,64,0.4)' }}>🔥 {hudData.fireRange || 1}</span>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+          <span style={{ color: '#00e87a', textShadow: '0 0 8px rgba(0,232,122,0.4)' }}>⚡ {hudData.speed || 1}</span>
           {hudData.skullEffect && (
-            <span style={{ color: '#ff2020' }}>⚠{hudData.skullEffect.toUpperCase()}</span>
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+              <span style={{ color: '#ff2020', textShadow: '0 0 10px #ff2020', animation: 'pulseGlow 0.6s ease-in-out infinite' }}>
+                ☠ {hudData.skullEffect.toUpperCase()}
+              </span>
+            </>
           )}
           {hudData.gateOpen && (
-            <span style={{ color: '#ffffa0' }}>★EXIT</span>
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+              <span style={{ color: '#f0c040', textShadow: '0 0 12px rgba(240,192,64,0.7)' }}>★ EXIT OPEN</span>
+            </>
           )}
-          <span style={{ color: '#666' }}>|</span>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
           <div 
-            style={{ cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '10px' : '12px' }}
+            style={{ cursor: 'pointer', pointerEvents: 'auto', opacity: 0.6, fontSize: isMobile ? '12px' : '14px' }}
             onClick={() => window.dispatchEvent(new CustomEvent('hw_back_pressed'))}
           >
             ⚙️

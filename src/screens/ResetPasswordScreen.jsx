@@ -33,7 +33,7 @@ export default function ResetPasswordScreen({ nav }) {
       <div className="relative z-10 w-full max-w-md mx-4">
         {/* Logo */}
         <div className="text-center mb-10">
-          <h1 className="logo-text mb-2">BombRush Arena</h1>
+          <h1 className="logo-text mb-2">NOVA STRIKE</h1>
           <p className="text-[8px] text-gray-500 tracking-widest mt-3">RESET PASSWORD</p>
         </div>
 

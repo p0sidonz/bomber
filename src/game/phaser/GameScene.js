@@ -7,38 +7,42 @@ import Phaser from 'phaser'
 const TS = 48 // tile size (matches physics space)
 const H = TS / 2
 
+// Player drone color variants
 const PLAYER_HEX = {
-  red: 0xe03040, blue: 0x3060e0, green: 0x30c060,
-  yellow: 0xf0c040, purple: 0x9040c0, orange: 0xe08030,
-  white: 0xe8e8e8,
+  red: 0xff2244, blue: 0x2288ff, green: 0x00e87a,
+  yellow: 0xffcc00, purple: 0xcc44ff, orange: 0xff7720,
+  white: 0xdde8ff,
 }
 
+// Alien entity color palette
 const ENEMY_HEX = {
-  Ballom: 0xe87060, Oneal: 0xe09030, Dahl: 0x30b050,
-  Minvo: 0xd0b020, Doria: 0x9050c0, Ovapi: 0x4070d0,
-  Pass: 0x40c0c0, Pontan: 0xd040c0, Nail: 0xc06030,
-  Zael: 0x80a030, Coin: 0xf0c030, Hurry: 0xd03030,
-  Rocky: 0x707080, Smoky: 0xb0b0b0, Ghost: 0xc0d0f0,
-  Blaze: 0xff5500, Titan: 0x604090, Mimic: 0x40a080,
-  Skuller: 0x4020a0, BossBomb: 0xaa0020,
-  Charger: 0xcc2222, Slime: 0x30cc60, MiniSlime: 0x66ff99, Hopper: 0x20aa50,
-  Dragon: 0xff6600,
+  Ballom: 0xff3366, Oneal: 0xff8800, Dahl: 0x00cc66,
+  Minvo: 0xffcc00, Doria: 0xcc44ff, Ovapi: 0x44aaff,
+  Pass: 0x00ffee, Pontan: 0xff44dd, Nail: 0xff6644,
+  Zael: 0x88ff44, Coin: 0xffdd44, Hurry: 0xff2244,
+  Rocky: 0x8899aa, Smoky: 0xaabbcc, Ghost: 0x88aaff,
+  Blaze: 0xff4400, Titan: 0x8844ee, Mimic: 0x44ddaa,
+  Skuller: 0x6622cc, BossBomb: 0xff0044,
+  Charger: 0xff2233, Slime: 0x44ff88, MiniSlime: 0x88ffaa, Hopper: 0x22dd66,
+  Dragon: 0xff5500,
 }
 
+// Powerup neon palette
 const PW_HEX = {
-  extrabomb: 0xf0c040, fireup: 0xff4400, speedup: 0x40ff40,
-  kick: 0xff8800, remote: 0x8888ff, bombpass: 0xcccccc,
-  wallpass: 0xaaffaa, fullfire: 0xff2200, skull: 0xaa0000,
-  clock: 0x00ccff, mystery: 0xff00ff, gatebomb: 0xffaa00,
-  shield: 0x4488ff, decoy: 0xff88ff, blockitem: 0x888888, swap: 0x00ffcc,
+  extrabomb: 0xffcc00, fireup: 0xff4400, speedup: 0x00ff88,
+  kick: 0xff8800, remote: 0x8888ff, bombpass: 0xaabbcc,
+  wallpass: 0x88ffbb, fullfire: 0xff2200, skull: 0xcc0044,
+  clock: 0x00ccff, mystery: 0xff44ff, gatebomb: 0xffaa00,
+  shield: 0x44aaff, decoy: 0xff88ff, blockitem: 0x8899aa, swap: 0x00ffcc,
   egg: 0xffddaa,
 }
 
+// Powerup icons (sci-fi themed labels)
 const PW_ICONS = {
-  extrabomb: 'B', fireup: 'F', speedup: 'S', kick: 'K', remote: 'R',
-  bombpass: 'P', wallpass: 'W', fullfire: 'X', skull: '!', clock: 'T',
-  mystery: '?', gatebomb: 'G', shield: '[', decoy: 'D', blockitem: '#', swap: '@',
-  egg: 'O',
+  extrabomb: '+B', fireup: '+F', speedup: '+S', kick: 'KK', remote: 'RD',
+  bombpass: 'BP', wallpass: 'WP', fullfire: 'MAX', skull: '☠', clock: '+T',
+  mystery: '?!', gatebomb: 'GB', shield: '◈', decoy: 'DC', blockitem: '■', swap: '⇄',
+  egg: '◉',
 }
 
 // Helper: darken a hex color by factor (0-1)
@@ -116,106 +120,102 @@ export default class GameScene extends Phaser.Scene {
     })
   }
 
-  // ─── TEXTURE GENERATION (3D-style tiles) ─────────────────────────────
+  // ─── TEXTURE GENERATION (NOVA STRIKE — Sci-Fi Cyberpunk Arena) ─────────────
   genTextures() {
-    // ── FLOOR ──
+    // ── FLOOR ── Deep space energy grid
     this._tex('floor_a', (g) => {
-      // Base green
-      g.fillStyle(0x5ab832); g.fillRect(0, 0, TS, TS)
-      // Subtle checker pattern for depth
-      g.fillStyle(0x4da828, 0.5); g.fillRect(0, 0, H, H); g.fillRect(H, H, H, H)
-      // Very subtle noise dots for texture
-      g.fillStyle(0x66cc38, 0.3)
-      for (let i = 0; i < 6; i++) {
-        const dx = 4 + (i * 7) % (TS - 8)
-        const dy = 3 + (i * 11) % (TS - 6)
-        g.fillRect(dx, dy, 2, 2)
-      }
+      // Base — deep void
+      g.fillStyle(0x07071a); g.fillRect(0, 0, TS, TS)
+      // Hexagonal grid pattern (alternating cells)
+      g.fillStyle(0x0d0d28); g.fillRect(0, 0, TS, TS)
+      // Grid crosshairs
+      g.fillStyle(0x1a2060, 0.7)
+      g.fillRect(0, H-1, TS, 1)
+      g.fillRect(H-1, 0, 1, TS)
+      // Energy node at center intersection
+      g.fillStyle(0x2030aa, 0.4); g.fillCircle(H, H, 3)
+      g.fillStyle(0x4060ff, 0.2); g.fillCircle(H, H, 6)
+      // Corner accent dots
+      g.fillStyle(0x2040cc, 0.35)
+      g.fillRect(0, 0, 2, 2); g.fillRect(TS-2, 0, 2, 2)
+      g.fillRect(0, TS-2, 2, 2); g.fillRect(TS-2, TS-2, 2, 2)
     })
 
-    // ── SOLID WALL (3D stone block) ──
+    // ── SOLID WALL ── Crystalline energy barrier
     this._tex('wall_solid', (g) => {
-      const base = 0x808890
-      // Main face
-      g.fillStyle(base); g.fillRect(0, 0, TS, TS)
-      // Top edge highlight (bright)
-      g.fillStyle(lighten(base, 0.35)); g.fillRect(0, 0, TS, 4)
-      // Left edge highlight
-      g.fillStyle(lighten(base, 0.25)); g.fillRect(0, 0, 4, TS)
-      // Bottom shadow
-      g.fillStyle(darken(base, 0.4)); g.fillRect(0, TS - 5, TS, 5)
-      // Right shadow
-      g.fillStyle(darken(base, 0.3)); g.fillRect(TS - 5, 0, 5, TS)
-      // Inner bevel
-      g.fillStyle(lighten(base, 0.12)); g.fillRect(5, 5, TS - 10, TS - 10)
-      // Center cross detail
-      g.fillStyle(darken(base, 0.15))
-      g.fillRect(H - 1, 8, 2, TS - 16)
-      g.fillRect(8, H - 1, TS - 16, 2)
-      // Corner rivets
-      g.fillStyle(darken(base, 0.5))
-      g.fillCircle(8, 8, 3); g.fillCircle(TS - 8, 8, 3)
-      g.fillCircle(8, TS - 8, 3); g.fillCircle(TS - 8, TS - 8, 3)
-      g.fillStyle(lighten(base, 0.4))
-      g.fillCircle(7, 7, 1.5); g.fillCircle(TS - 9, 7, 1.5)
+      // Dark base
+      g.fillStyle(0x060616); g.fillRect(0, 0, TS, TS)
+      // Crystal body — teal/cyan
+      g.fillStyle(0x0d2a3a); g.fillRect(2, 2, TS-4, TS-4)
+      // Crystal faces (lighter planes)
+      g.fillStyle(0x1a4858); g.fillRect(4, 4, TS-8, TS-8)
+      // Top crystal face (bright)
+      g.fillStyle(0x2a7090); g.fillRect(5, 5, TS-10, 10)
+      // Diagonal crystal edge
+      g.fillStyle(0x3090b0); g.fillRect(5, 5, 8, TS-10)
+      // Glow core
+      g.fillStyle(0x00d4ff, 0.08); g.fillRect(8, 8, TS-16, TS-16)
+      g.fillStyle(0x00d4ff, 0.15); g.fillRect(10, 10, TS-20, TS-20)
+      // Neon outline
+      g.lineStyle(1, 0x00aaff, 0.5)
+      g.strokeRect(2, 2, TS-4, TS-4)
+      // Corner energy sparks
+      g.fillStyle(0x00ffff, 0.5)
+      g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+      g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+      g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+      g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+      // Top neon edge
+      g.fillStyle(0x00d4ff, 0.3); g.fillRect(2, 2, TS-4, 1)
+      g.fillStyle(0x00d4ff, 0.15); g.fillRect(2, TS-3, TS-4, 1)
     })
 
-    // ── SOFT WALL (3D brick) ──
+    // ── SOFT WALL ── Destructible alien bio-crystal
     this._tex('wall_soft', (g) => {
-      const base = 0xc08050
-      g.fillStyle(base); g.fillRect(0, 0, TS, TS)
-      // Top highlight
-      g.fillStyle(lighten(base, 0.3)); g.fillRect(0, 0, TS, 3)
-      // Left highlight
-      g.fillStyle(lighten(base, 0.2)); g.fillRect(0, 0, 3, TS)
-      // Bottom shadow
-      g.fillStyle(darken(base, 0.35)); g.fillRect(0, TS - 4, TS, 4)
-      // Right shadow
-      g.fillStyle(darken(base, 0.25)); g.fillRect(TS - 4, 0, 4, TS)
-      // Brick lines (mortar)
-      g.fillStyle(darken(base, 0.3))
-      g.fillRect(3, H - 1, TS - 6, 2)
-      g.fillRect(H / 2, 3, 2, H - 4)
-      g.fillRect(H + H / 2, 3, 2, H - 4)
-      g.fillRect(H - 1, H + 1, 2, H - 5)
-      // Brick face highlights
-      g.fillStyle(lighten(base, 0.15))
-      g.fillRect(5, 5, H / 2 - 4, H - 8)
-      g.fillRect(H / 2 + 4, 5, H - 4, H - 8)
+      // Dark base
+      g.fillStyle(0x100618); g.fillRect(0, 0, TS, TS)
+      // Bio-organic body
+      g.fillStyle(0x25103a); g.fillRect(2, 2, TS-4, TS-4)
+      // Inner panels
+      g.fillStyle(0x38185a); g.fillRect(4, 4, TS-8, TS-8)
+      // Top lighter face
+      g.fillStyle(0x50228a); g.fillRect(5, 5, TS-10, 9)
+      // Side crystal
+      g.fillStyle(0x3d1870); g.fillRect(5, 14, 8, TS-18)
+      // Glowing core (magenta/violet)
+      g.fillStyle(0xcc44ff, 0.12); g.fillRect(9, 9, TS-18, TS-18)
+      g.fillStyle(0xaa22dd, 0.2); g.fillRect(12, 12, TS-24, TS-24)
+      // Neon magenta border
+      g.lineStyle(1, 0xcc00ff, 0.5)
+      g.strokeRect(2, 2, TS-4, TS-4)
+      // Corner energy sparks
+      g.fillStyle(0xff44ff, 0.6)
+      g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+      g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+      g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+      g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+      // Top edge glow
+      g.fillStyle(0xcc00ff, 0.35); g.fillRect(2, 2, TS-4, 1)
     })
 
-    // ── EXIT GATE (brown wooden door) ──
+    // ── EXIT GATE ── Warp portal
     this._tex('gate_exit', (g) => {
-      const base = 0x6b4226
-      // Dark pit background
-      g.fillStyle(0x1a0e04); g.fillRect(0, 0, TS, TS)
-      // Wooden door frame
-      g.fillStyle(0x8b5a2b); g.fillRect(2, 2, TS - 4, TS - 4)
-      // Main wood face
-      g.fillStyle(base); g.fillRect(4, 4, TS - 8, TS - 8)
-      // Wood grain lines
-      g.fillStyle(darken(base, 0.15))
-      g.fillRect(8, 4, 2, TS - 8)
-      g.fillRect(18, 4, 2, TS - 8)
-      g.fillRect(28, 4, 2, TS - 8)
-      g.fillRect(38, 4, 2, TS - 8)
-      // Top highlight
-      g.fillStyle(lighten(base, 0.25)); g.fillRect(4, 4, TS - 8, 3)
-      // Bottom shadow
-      g.fillStyle(darken(base, 0.35)); g.fillRect(4, TS - 7, TS - 8, 3)
-      // Door handle (golden knob)
-      g.fillStyle(0xc8a030)
-      g.fillCircle(TS - 14, H, 4)
-      g.fillStyle(0xf0d060)
-      g.fillCircle(TS - 15, H - 1, 2)
-      // Arch detail at top
-      g.fillStyle(0x8b5a2b)
-      g.fillRect(2, 2, TS - 4, 4)
-      g.fillStyle(lighten(base, 0.3))
-      g.fillRect(4, 2, TS - 8, 2)
+      g.fillStyle(0x030310); g.fillRect(0, 0, TS, TS)
+      // Outer rings — gold
+      g.fillStyle(0x1a1400); g.fillRect(3, 3, TS-6, TS-6)
+      g.fillStyle(0xf0c040, 0.1); g.fillCircle(H, H, 22)
+      g.fillStyle(0xf0c040, 0.2); g.fillCircle(H, H, 18)
+      g.fillStyle(0xffd700, 0.35); g.fillCircle(H, H, 13)
+      g.fillStyle(0xffe566, 0.6); g.fillCircle(H, H, 8)
+      g.fillStyle(0xfff5aa, 0.9); g.fillCircle(H, H, 4)
+      g.fillStyle(0xffffff); g.fillCircle(H, H, 2)
+      // Border
+      g.fillStyle(0xf0c040, 0.5)
+      g.fillRect(0, 0, TS, 2); g.fillRect(0, TS-2, TS, 2)
+      g.fillRect(0, 0, 2, TS); g.fillRect(TS-2, 0, 2, TS)
     })
 
-    // Portal textures are drawn dynamically in syncGates based on player color
+    // Portal textures are drawn dynamically in syncGates
   }
 
   _tex(key, drawFn) {
@@ -315,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── SYNC BOMBS (3D sphere with fuse and spark) ────────────────────────
+  // ─── SYNC BOMBS (Plasma Charge Orb) ──────────────────────────────────────────────
   syncBombs(state, time) {
     const activeBombIds = new Set()
     for (const bomb of state.bombs) {
@@ -331,65 +331,72 @@ export default class GameScene extends Phaser.Scene {
       const by = bomb.py !== undefined ? bomb.py : bomb.y * TS
       entry.gfx.setPosition(bx + H, by + H)
 
-      // Pulse animation
-      const fuseRatio = (bomb.fuseTicks || 60) / 60
-      const beatPeriod = Math.max(80, 350 * fuseRatio)
-      const pulse = Math.sin(time / beatPeriod * Math.PI * 2) * 0.1
+      // Plasma pulse — faster as it charges to detonate
+      const fuseRatio = Math.max(0, Math.min(1, (bomb.fuseTicks || 60) / 60))
+      const pulseSpeed = 1 + (1 - fuseRatio) * 4
+      const pulse = Math.sin(time / 160 * pulseSpeed * Math.PI) * 0.12
       const scale = 1 + pulse
 
       entry.gfx.clear()
-      const r = Math.floor(15 * scale)
+      const r = Math.floor(13 * scale)
 
-      // Drop shadow
-      entry.gfx.fillStyle(0x000000, 0.3)
-      entry.gfx.fillEllipse(0, r + 2, r * 1.6, 6)
+      // Soft ground shadow
+      entry.gfx.fillStyle(0x0000ff, 0.12)
+      entry.gfx.fillEllipse(1, r + 5, r * 2.2, 8)
 
-      // Main bomb body (dark sphere)
-      entry.gfx.fillStyle(0x1a1a2e)
+      // Danger glow rings (cyan → red as fuse burns)
+      const danger = 1 - fuseRatio // 0=safe, 1=about to blow
+      const glowR = Math.floor(0x00 + 0xff * danger)
+      const glowB = Math.floor(0xff * (1 - danger * 0.6))
+      const glowColor = (glowR << 16) | 0x0000 | glowB
+
+      // Outer plasma aura
+      entry.gfx.fillStyle(glowColor, 0.06)
+      entry.gfx.fillCircle(0, 0, r + 12)
+      entry.gfx.fillStyle(glowColor, 0.12)
+      entry.gfx.fillCircle(0, 0, r + 7)
+      entry.gfx.fillStyle(glowColor, 0.22)
+      entry.gfx.fillCircle(0, 0, r + 3)
+
+      // Outer energy shell
+      entry.gfx.lineStyle(1.5, glowColor, 0.8)
+      entry.gfx.strokeCircle(0, 0, r + 2)
+
+      // Core plasma sphere (dark center with luminous center)
+      entry.gfx.fillStyle(0x080820)
       entry.gfx.fillCircle(0, 0, r)
 
-      // 3D shading — bottom half darker
-      entry.gfx.fillStyle(0x000000, 0.3)
-      entry.gfx.beginPath()
-      entry.gfx.arc(0, 0, r, 0, Math.PI)
-      entry.gfx.fillPath()
+      // Inner energy swirl (blue → purple gradient effect)
+      entry.gfx.fillStyle(0x1020aa, 0.6)
+      entry.gfx.fillCircle(0, 0, r - 2)
+      entry.gfx.fillStyle(0x2040ee, 0.5)
+      entry.gfx.fillCircle(-1, -1, r - 4)
+      entry.gfx.fillStyle(0x6688ff, 0.4)
+      entry.gfx.fillCircle(-2, -2, r - 6)
 
-      // 3D highlight — top-left specular
-      entry.gfx.fillStyle(0xffffff, 0.35)
-      entry.gfx.fillCircle(-r * 0.3, -r * 0.35, r * 0.35)
-      entry.gfx.fillStyle(0xffffff, 0.6)
-      entry.gfx.fillCircle(-r * 0.25, -r * 0.4, r * 0.15)
+      // Hot plasma core
+      entry.gfx.fillStyle(glowColor, 0.8)
+      entry.gfx.fillCircle(0, 0, 4 * scale)
+      entry.gfx.fillStyle(0xffffff, 0.9)
+      entry.gfx.fillCircle(0, 0, 2 * scale)
 
-      // Metal band around middle
-      entry.gfx.fillStyle(0x555566)
-      entry.gfx.fillRect(-r, -2, r * 2, 4)
-      entry.gfx.fillStyle(0x888899)
-      entry.gfx.fillRect(-r, -2, r * 2, 2)
+      // Specular gloss
+      entry.gfx.fillStyle(0xffffff, 0.4)
+      entry.gfx.fillCircle(-r * 0.3, -r * 0.3, r * 0.22)
+      entry.gfx.fillStyle(0xffffff, 0.7)
+      entry.gfx.fillCircle(-r * 0.25, -r * 0.35, r * 0.1)
 
-      // Fuse tube
-      entry.gfx.fillStyle(0x8a6a3a)
-      entry.gfx.fillRect(-2, -r - 8, 4, 10)
-      // Fuse rope texture
-      entry.gfx.fillStyle(0x6a4a2a)
-      entry.gfx.fillRect(-1, -r - 7, 2, 2)
-      entry.gfx.fillRect(-1, -r - 3, 2, 2)
-
-      // Spark glow (pulsing)
-      const sparkPhase = (time % 300) / 300
-      const sparkSize = 4 + Math.sin(sparkPhase * Math.PI * 2) * 3
-
-      // Outer glow
-      entry.gfx.fillStyle(0xff6600, 0.3)
-      entry.gfx.fillCircle(0, -r - 10, sparkSize + 6)
-      // Mid glow
-      entry.gfx.fillStyle(0xffaa00, 0.6)
-      entry.gfx.fillCircle(0, -r - 10, sparkSize + 2)
-      // Core spark
-      entry.gfx.fillStyle(0xffff88)
-      entry.gfx.fillCircle(0, -r - 10, sparkSize)
-      // White hot center
-      entry.gfx.fillStyle(0xffffff)
-      entry.gfx.fillCircle(0, -r - 10, sparkSize * 0.4)
+      // Energy arcs (3 small sparks orbiting)
+      const arcT = time / 500
+      for (let i = 0; i < 3; i++) {
+        const angle = arcT * Math.PI * 2 + (i * Math.PI * 2 / 3)
+        const ax = Math.cos(angle) * (r + 4)
+        const ay = Math.sin(angle) * (r + 4)
+        entry.gfx.fillStyle(glowColor, 0.9)
+        entry.gfx.fillCircle(ax, ay, 2)
+        entry.gfx.fillStyle(0xffffff)
+        entry.gfx.fillCircle(ax, ay, 0.8)
+      }
     }
 
     for (const id of Object.keys(this.bombGfx)) {
@@ -417,38 +424,48 @@ export default class GameScene extends Phaser.Scene {
       // Additive glow layer
       const glow = this.add.graphics().setDepth(4.5).setAlpha(alpha * 0.6).setBlendMode(Phaser.BlendModes.ADD)
 
-      // Draw smooth fire on each explosion tile
+      // Draw electric plasma on each tile
       for (const [col, row] of exp.tiles) {
         const cx = col * TS + H
         const cy = row * TS + H
         const isCenter = col === exp.centerX && row === exp.centerY
-        const s = isCenter ? 1.25 : 1.0
-        const expansion = 1 + progress * 0.2 // slight expansion as it fades
+        const s = isCenter ? 1.4 : 1.0
+        const expand = 1 + progress * 0.4
 
-        // Outer red-orange fire
-        gfx.fillStyle(0xcc2200, 0.6)
-        gfx.fillCircle(cx, cy, 20 * s * expansion)
+        // Floor scorch
+        gfx.fillStyle(0x000000, 0.5)
+        gfx.fillCircle(cx, cy, 22 * s)
 
-        // Mid orange fire
-        gfx.fillStyle(0xff6600, 0.8)
-        gfx.fillCircle(cx, cy, 15 * s * expansion)
+        // Outer discharge ring (deep purple)
+        gfx.fillStyle(0x330066, 0.5)
+        gfx.fillCircle(cx, cy, 22 * s * expand)
 
-        // Inner bright yellow
-        gfx.fillStyle(0xffaa22, 0.9)
-        gfx.fillCircle(cx, cy, 10 * s * expansion)
+        // Mid plasma (electric violet)
+        gfx.fillStyle(0x6600cc, 0.7)
+        gfx.fillCircle(cx, cy, 15 * s * expand)
 
-        // White-hot core
-        gfx.fillStyle(0xffffcc)
-        gfx.fillCircle(cx, cy, 5 * s)
+        // Inner core (bright blue-white)
+        gfx.fillStyle(0x8844ff, 0.9)
+        gfx.fillCircle(cx, cy, 10 * s * expand)
 
-        // Additive glow halo
-        glow.fillStyle(0xff4400, 0.4)
-        glow.fillCircle(cx, cy, 22 * s * expansion)
-        glow.fillStyle(0xffcc00, 0.3)
-        glow.fillCircle(cx, cy, 12 * s)
+        // Hot center
+        gfx.fillStyle(0xcc88ff, 0.95)
+        gfx.fillCircle(cx, cy, isCenter ? 7 : 5)
+
+        // White flash core
+        gfx.fillStyle(0xffffff, 1)
+        gfx.fillCircle(cx, cy, isCenter ? 4 : 2.5)
+
+        // Additive electric bloom
+        glow.fillStyle(0x4400ff, 0.4)
+        glow.fillCircle(cx, cy, 26 * s * expand)
+        glow.fillStyle(0x8800ff, 0.5)
+        glow.fillCircle(cx, cy, 16 * s * expand)
+        glow.fillStyle(0xaa66ff, 0.6)
+        glow.fillCircle(cx, cy, 8 * s)
       }
 
-      // Connect tiles with beams for the cross shape
+      // Connect tiles with electric plasma beams
       let minX = exp.centerX, maxX = exp.centerX
       let minY = exp.centerY, maxY = exp.centerY
       for (const [col, row] of exp.tiles) {
@@ -456,37 +473,54 @@ export default class GameScene extends Phaser.Scene {
         if (col === exp.centerX) { minY = Math.min(minY, row); maxY = Math.max(maxY, row) }
       }
 
-      // Horizontal beam connector
+      // Horizontal plasma beam
       if (maxX > minX) {
         const y = exp.centerY * TS + H
         const x1 = minX * TS + H
         const x2 = maxX * TS + H
-        gfx.fillStyle(0xff6600, 0.5)
-        gfx.fillRect(x1, y - 10, x2 - x1, 20)
-        gfx.fillStyle(0xffaa33, 0.7)
-        gfx.fillRect(x1, y - 6, x2 - x1, 12)
-        gfx.fillStyle(0xffffcc, 0.6)
-        gfx.fillRect(x1, y - 3, x2 - x1, 6)
+        // Wide outer discharge
+        gfx.fillStyle(0x2200aa, 0.3)
+        gfx.fillRect(x1, y - 14, x2 - x1, 28)
+        // Main beam
+        gfx.fillStyle(0x4400ff, 0.55)
+        gfx.fillRect(x1, y - 9, x2 - x1, 18)
+        // Bright core
+        gfx.fillStyle(0x8844ff, 0.8)
+        gfx.fillRect(x1, y - 5, x2 - x1, 10)
+        // White-hot center
+        gfx.fillStyle(0xbbaaff, 0.9)
+        gfx.fillRect(x1, y - 2, x2 - x1, 4)
+        gfx.fillStyle(0xffffff, 0.8)
+        gfx.fillRect(x1, y - 1, x2 - x1, 2)
+        // Additive bloom
+        glow.fillStyle(0x6600ff, 0.45)
+        glow.fillRect(x1, y - 16, x2 - x1, 32)
       }
 
-      // Vertical beam connector
+      // Vertical plasma beam
       if (maxY > minY) {
         const x = exp.centerX * TS + H
         const y1 = minY * TS + H
         const y2 = maxY * TS + H
-        gfx.fillStyle(0xff6600, 0.5)
-        gfx.fillRect(x - 10, y1, 20, y2 - y1)
-        gfx.fillStyle(0xffaa33, 0.7)
-        gfx.fillRect(x - 6, y1, 12, y2 - y1)
-        gfx.fillStyle(0xffffcc, 0.6)
-        gfx.fillRect(x - 3, y1, 6, y2 - y1)
+        gfx.fillStyle(0x2200aa, 0.3)
+        gfx.fillRect(x - 14, y1, 28, y2 - y1)
+        gfx.fillStyle(0x4400ff, 0.55)
+        gfx.fillRect(x - 9, y1, 18, y2 - y1)
+        gfx.fillStyle(0x8844ff, 0.8)
+        gfx.fillRect(x - 5, y1, 10, y2 - y1)
+        gfx.fillStyle(0xbbaaff, 0.9)
+        gfx.fillRect(x - 2, y1, 4, y2 - y1)
+        gfx.fillStyle(0xffffff, 0.8)
+        gfx.fillRect(x - 1, y1, 2, y2 - y1)
+        glow.fillStyle(0x6600ff, 0.45)
+        glow.fillRect(x - 16, y1, 32, y2 - y1)
       }
 
       this.explGfx.push({ gfx, glow, id: exp.id })
     }
   }
 
-  // ─── SYNC POWERUPS ────────────────────────────────────────────────────
+  // ─── SYNC POWERUPS ───────────────────────────────────────────────────────
   syncPowerups(state) {
     const activePwKeys = new Set()
     for (const pw of state.powerupsOnMap || []) {
@@ -496,31 +530,42 @@ export default class GameScene extends Phaser.Scene {
         const x = pw.x * TS + H
         const y = pw.y * TS + H
         const gfx = this.add.graphics().setDepth(2).setPosition(x, y)
-        const sz = TS - 10
+        const sz = TS - 8
         const half = sz / 2
         const color = PW_HEX[pw.type] || 0xffffff
 
+        // Outer glow halo
+        gfx.fillStyle(color, 0.08)
+        gfx.fillCircle(0, 0, half + 8)
+        gfx.fillStyle(color, 0.12)
+        gfx.fillCircle(0, 0, half + 4)
+
         // Shadow
-        gfx.fillStyle(0x000000, 0.3)
+        gfx.fillStyle(0x000000, 0.4)
         gfx.fillRoundedRect(-half + 2, -half + 3, sz, sz, 10)
-        // Background
-        gfx.fillStyle(darken(color, 0.3))
+        // Dark backdrop
+        gfx.fillStyle(0x0a0a14)
         gfx.fillRoundedRect(-half, -half, sz, sz, 10)
-        // Main face
-        gfx.fillStyle(color)
-        gfx.fillRoundedRect(-half + 2, -half + 2, sz - 4, sz - 4, 8)
-        // Highlight
-        gfx.fillStyle(0xffffff, 0.4)
-        gfx.fillRoundedRect(-half + 4, -half + 4, sz - 8, 8, 4)
-        // Inner ring
-        gfx.lineStyle(1.5, 0xffffff, 0.5)
-        gfx.strokeRoundedRect(-half + 6, -half + 6, sz - 12, sz - 12, 6)
+        // Colored face
+        gfx.fillStyle(darken(color, 0.15))
+        gfx.fillRoundedRect(-half + 1, -half + 1, sz - 2, sz - 2, 9)
+        // Inner neon tint
+        gfx.fillStyle(color, 0.25)
+        gfx.fillRoundedRect(-half + 3, -half + 3, sz - 6, sz - 6, 7)
+        // Top shine
+        gfx.fillStyle(0xffffff, 0.2)
+        gfx.fillRoundedRect(-half + 5, -half + 5, sz - 10, 7, 4)
+        // Neon border
+        gfx.lineStyle(1.5, color, 0.7)
+        gfx.strokeRoundedRect(-half + 1, -half + 1, sz - 2, sz - 2, 9)
 
         const txt = this.add.text(x, y + 1, PW_ICONS[pw.type] || '?', {
-          fontSize: `${Math.floor(sz * 0.45)}px`,
-          fontFamily: '"Press Start 2P", monospace',
+          fontSize: `${Math.floor(sz * 0.5)}px`,
+          fontFamily: '"Rajdhani", "Outfit", sans-serif',
           fontStyle: 'bold',
-          color: '#111111',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 2,
         }).setOrigin(0.5).setDepth(2.5)
 
         this.pwSprites[key] = { gfx, txt }
@@ -1130,18 +1175,21 @@ export default class GameScene extends Phaser.Scene {
     const activeIds = new Set()
 
     for (const player of Object.values(state.players || {})) {
-      if (!player.alive && (player.deathFrame || 0) > 18) continue
+      const isRespawning = !player.alive && (player.respawnTimer || 0) > 0
+      if (!player.alive && !isRespawning && (player.deathFrame || 0) > 18) continue
       activeIds.add(player.userId)
 
       let entry = this.playerGfx[player.userId]
       if (!entry) {
         const gfx = this.add.graphics().setDepth(6)
-        const nameText = this.add.text(0, 0, (player.name || '').substring(0, 7), {
-          fontSize: '9px',
-          fontFamily: '"Press Start 2P", monospace',
+        const nameText = this.add.text(0, 0, (player.name || '').substring(0, 7).toUpperCase(), {
+          fontSize: '10px',
+          fontFamily: '"Rajdhani", "Outfit", sans-serif',
+          fontStyle: 'bold',
           color: '#ffffff',
           stroke: '#000000',
-          strokeThickness: 2,
+          strokeThickness: 3,
+          letterSpacing: 1,
         }).setOrigin(0.5, 1).setDepth(6.5)
         entry = { gfx, nameText, prevPx: player.px, prevPy: player.py }
         this.playerGfx[player.userId] = entry
@@ -1155,12 +1203,19 @@ export default class GameScene extends Phaser.Scene {
       entry.gfx.setPosition(px, py)
       entry.nameText.setPosition(px, py - H - 4)
 
-      if (!player.alive) {
+      if (!player.alive && isRespawning) {
+        // Respawning — ghostly pulsing indicator at spawn point
+        const pulse = 0.2 + 0.3 * Math.abs(Math.sin(Date.now() / 300))
+        entry.gfx.setScale(1).setRotation(0).setAlpha(pulse)
+        entry.nameText.setAlpha(pulse)
+      } else if (!player.alive) {
         const df = player.deathFrame || 0
         const scale = Math.max(0, 1 - df / 18)
         entry.gfx.setScale(scale).setAlpha(scale).setRotation((df / 18) * Math.PI * 2)
+        entry.nameText.setAlpha(scale)
       } else {
         entry.gfx.setScale(1).setRotation(0)
+        entry.nameText.setAlpha(1)
         let alpha = 1
         if (player.wallPassTimer > 0) alpha = 0.55
         // Blink rapidly when shield is active (invincibility after respawn)
@@ -1187,147 +1242,112 @@ export default class GameScene extends Phaser.Scene {
     gfx.clear()
     const color = PLAYER_HEX[player.color] || 0xe8e8e8
     const frame = player.frame || 0
-    const bob = frame === 0 ? 0 : 2
-    const legOff = frame === 0 ? 0 : 2
+    const hover = Math.sin(frame * 0.4) * 2 // smooth hover bob
 
-    // ── GROUND SHADOW ──
-    gfx.fillStyle(0x000000, 0.25)
-    gfx.fillEllipse(0, 18, 22, 7)
+    // ── GROUND SHADOW (hover glow instead of hard shadow) ──
+    gfx.fillStyle(color, 0.08)
+    gfx.fillEllipse(0, 16, 28, 10)
+    gfx.fillStyle(color, 0.04)
+    gfx.fillEllipse(0, 18, 36, 8)
 
-    // ── LEGS (behind body) ──
-    const legColor = darken(color, 0.35)
-    gfx.fillStyle(legColor)
-    gfx.fillRoundedRect(-8, 10 + bob, 7, 6 + (frame === 0 ? 0 : -legOff), 3)
-    gfx.fillRoundedRect(1, 10 + bob, 7, 6 + (frame === 0 ? 0 : legOff), 3)
-    // Shoes
+    // ── ENGINE EXHAUST (back thrusters) ──
+    const exhaustAlpha = 0.3 + Math.sin(frame * 0.8) * 0.2
+    gfx.fillStyle(0x4488ff, exhaustAlpha)
+    gfx.fillEllipse(-8, 14 - hover, 6, 8)
+    gfx.fillEllipse(8, 14 - hover, 6, 8)
+    gfx.fillStyle(0x88ccff, exhaustAlpha * 0.8)
+    gfx.fillEllipse(-8, 15 - hover, 3, 5)
+    gfx.fillEllipse(8, 15 - hover, 3, 5)
+
+    // ── WING FINS (lateral stabilizers) ──
+    const wingColor = darken(color, 0.2)
+    // Left wing
+    gfx.fillStyle(wingColor)
+    gfx.fillTriangle(-20, 4 - hover, -9, -4 - hover, -9, 8 - hover)
+    gfx.fillStyle(lighten(color, 0.1), 0.6)
+    gfx.fillTriangle(-18, 4 - hover, -10, -2 - hover, -10, 6 - hover)
+    // Right wing
+    gfx.fillStyle(wingColor)
+    gfx.fillTriangle(20, 4 - hover, 9, -4 - hover, 9, 8 - hover)
+    gfx.fillStyle(lighten(color, 0.1), 0.6)
+    gfx.fillTriangle(18, 4 - hover, 10, -2 - hover, 10, 6 - hover)
+    // Wing neon edge lights
+    gfx.fillStyle(color, 0.8)
+    gfx.fillRect(-21, 3 - hover, 4, 2)
+    gfx.fillRect(17, 3 - hover, 4, 2)
+
+    // ── MAIN HULL (central fuselage) ──
+    // Hull shadow
     gfx.fillStyle(darken(color, 0.5))
-    gfx.fillRoundedRect(-9, 14 + bob + (frame === 0 ? 0 : -legOff), 8, 4, 2)
-    gfx.fillRoundedRect(1, 14 + bob + (frame === 0 ? 0 : legOff), 8, 4, 2)
+    gfx.fillRoundedRect(-10, -10 - hover, 20, 22, 6)
+    // Hull main
+    gfx.fillStyle(darken(color, 0.2))
+    gfx.fillRoundedRect(-9, -11 - hover, 18, 21, 5)
+    // Hull highlight (top face)
+    gfx.fillStyle(lighten(color, 0.15))
+    gfx.fillRoundedRect(-8, -10 - hover, 16, 8, 4)
+    // Hull top gloss strip
+    gfx.fillStyle(0xffffff, 0.3)
+    gfx.fillRoundedRect(-5, -10 - hover, 10, 3, 2)
 
-    // ── BODY (3D torso) ──
-    // Body shadow
-    gfx.fillStyle(darken(color, 0.3))
-    gfx.fillRoundedRect(-10, -1 + bob, 20, 14, 5)
-    // Main body
-    gfx.fillStyle(color)
-    gfx.fillRoundedRect(-9, -2 + bob, 18, 13, 5)
-    // Body highlight (top)
-    gfx.fillStyle(lighten(color, 0.25), 0.5)
-    gfx.fillRoundedRect(-7, -1 + bob, 14, 5, 3)
-    // Body shading (bottom)
-    gfx.fillStyle(darken(color, 0.15), 0.4)
-    gfx.fillRect(-9, 6 + bob, 18, 5)
-
-    // Belt buckle
-    gfx.fillStyle(0xf0c040)
-    gfx.fillRoundedRect(-3, 5 + bob, 6, 4, 2)
-    gfx.fillStyle(0xffdd66)
-    gfx.fillRect(-2, 6 + bob, 4, 2)
-
-    // ── ARMS ──
-    const armColor = lighten(color, 0.05)
-    if (player.dir === 'left') {
-      gfx.fillStyle(armColor)
-      gfx.fillRoundedRect(-13, 0 + bob, 6, 10, 3)
-      gfx.fillRoundedRect(4, 1 + bob, 6, 9, 3)
-    } else if (player.dir === 'right') {
-      gfx.fillStyle(armColor)
-      gfx.fillRoundedRect(-10, 1 + bob, 6, 9, 3)
-      gfx.fillRoundedRect(7, 0 + bob, 6, 10, 3)
-    } else {
-      gfx.fillStyle(armColor)
-      gfx.fillRoundedRect(-13, 0 + bob, 6, 10, 3)
-      gfx.fillRoundedRect(7, 0 + bob, 6, 10, 3)
-    }
-    // Gloves
-    gfx.fillStyle(0xeeeeee)
-    if (player.dir === 'left') {
-      gfx.fillCircle(-10, 10 + bob, 3.5)
-      gfx.fillCircle(7, 10 + bob, 3.5)
-    } else if (player.dir === 'right') {
-      gfx.fillCircle(-7, 10 + bob, 3.5)
-      gfx.fillCircle(10, 10 + bob, 3.5)
-    } else {
-      gfx.fillCircle(-10, 10 + bob, 3.5)
-      gfx.fillCircle(10, 10 + bob, 3.5)
-    }
-
-    // ── HEAD (3D helmet) ──
-    // Helmet shadow
-    gfx.fillStyle(0xcccccc)
-    gfx.fillRoundedRect(-11, -19 + bob, 22, 18, 9)
-    // Helmet main
-    gfx.fillStyle(0xf0f0f0)
-    gfx.fillRoundedRect(-10, -20 + bob, 20, 17, 8)
-    // Helmet highlight (3D gloss)
-    gfx.fillStyle(0xffffff, 0.7)
-    gfx.fillRoundedRect(-8, -19 + bob, 12, 6, 4)
-    gfx.fillStyle(0xffffff, 0.9)
-    gfx.fillCircle(-4, -16 + bob, 2.5)
-
-    // Color stripe on helmet
-    gfx.fillStyle(color)
-    gfx.fillRoundedRect(-8, -9 + bob, 16, 4, 2)
-
-    // ── VISOR (dark screen) ──
+    // ── SENSOR DOME (instead of head/helmet) ──
     gfx.fillStyle(0x0a0a1a)
-    gfx.fillRoundedRect(-7, -16 + bob, 14, 9, 4)
-    // Visor glass sheen
-    gfx.fillStyle(0x334455, 0.3)
-    gfx.fillRoundedRect(-6, -15 + bob, 12, 4, 2)
-
-    // ── EYES (in visor) ──
-    const eyeColor = lighten(color, 0.5)
-    if (player.dir === 'up') {
-      // Facing away — show helmet back
-      gfx.fillStyle(0xdddddd)
-      gfx.fillRoundedRect(-6, -15 + bob, 12, 8, 3)
-    } else if (player.dir === 'left') {
-      gfx.fillStyle(eyeColor)
-      gfx.fillCircle(-4, -11 + bob, 2.5)
-      gfx.fillCircle(-1, -12 + bob, 2)
-      gfx.fillStyle(0xffffff, 0.8)
-      gfx.fillCircle(-5, -12 + bob, 1)
+    gfx.fillCircle(0, -10 - hover, 8)
+    // Sensor glass
+    const sensorColor = lighten(color, 0.4)
+    gfx.fillStyle(sensorColor, 0.85)
+    gfx.fillCircle(0, -10 - hover, 6)
+    gfx.fillStyle(0xffffff, 0.5)
+    gfx.fillCircle(-2, -12 - hover, 2.5)
+    // Sensor eye direction indicator
+    if (player.dir === 'left') {
+      gfx.fillStyle(0x000000, 0.7); gfx.fillCircle(-2, -10 - hover, 3)
+      gfx.fillStyle(color); gfx.fillCircle(-3, -10 - hover, 2)
     } else if (player.dir === 'right') {
-      gfx.fillStyle(eyeColor)
-      gfx.fillCircle(4, -11 + bob, 2.5)
-      gfx.fillCircle(1, -12 + bob, 2)
-      gfx.fillStyle(0xffffff, 0.8)
-      gfx.fillCircle(3, -12 + bob, 1)
+      gfx.fillStyle(0x000000, 0.7); gfx.fillCircle(2, -10 - hover, 3)
+      gfx.fillStyle(color); gfx.fillCircle(3, -10 - hover, 2)
+    } else if (player.dir === 'up') {
+      gfx.fillStyle(0x000000, 0.7); gfx.fillCircle(0, -13 - hover, 3)
+      gfx.fillStyle(color); gfx.fillCircle(0, -14 - hover, 2)
     } else {
-      gfx.fillStyle(eyeColor)
-      gfx.fillCircle(-3, -11 + bob, 2.5)
-      gfx.fillCircle(3, -11 + bob, 2.5)
-      gfx.fillStyle(0xffffff, 0.8)
-      gfx.fillCircle(-4, -12 + bob, 1)
-      gfx.fillCircle(2, -12 + bob, 1)
+      gfx.fillStyle(0x000000, 0.7); gfx.fillCircle(0, -8 - hover, 3)
+      gfx.fillStyle(color); gfx.fillCircle(0, -7 - hover, 2)
     }
 
-    // ── ANTENNA ──
-    gfx.fillStyle(0x888888)
-    gfx.fillRect(-1, -23 + bob, 2, 5)
-    gfx.fillStyle(color)
-    gfx.fillCircle(0, -24 + bob, 3)
-    gfx.fillStyle(lighten(color, 0.4))
-    gfx.fillCircle(-1, -25 + bob, 1.5)
+    // ── FRONT CANNON TIPS ──
+    gfx.fillStyle(darken(color, 0.3))
+    gfx.fillRoundedRect(-11, -5 - hover, 4, 10, 2)
+    gfx.fillRoundedRect(7, -5 - hover, 4, 10, 2)
+    // Cannon barrel tips (glowing)
+    gfx.fillStyle(color, 0.9)
+    gfx.fillRect(-11, 3 - hover, 4, 2)
+    gfx.fillRect(7, 3 - hover, 4, 2)
+    gfx.fillStyle(lighten(color, 0.5))
+    gfx.fillRect(-10, 3 - hover, 2, 1)
+    gfx.fillRect(8, 3 - hover, 2, 1)
 
     // ── EFFECTS ──
     if (player.skullEffect) {
-      gfx.fillStyle(0xff0000, 0.2)
-      gfx.fillCircle(0, bob - 2, 20)
-      gfx.lineStyle(1.5, 0xff0000, 0.4)
-      gfx.strokeCircle(0, bob - 2, 20)
+      gfx.fillStyle(0xff0000, 0.15)
+      gfx.fillCircle(0, -hover, 22)
+      gfx.lineStyle(1.5, 0xff0000, 0.5)
+      gfx.strokeCircle(0, -hover, 22)
     }
 
     if (player.shieldTimer > 0) {
+      // Hexagonal shield effect
       gfx.lineStyle(2, 0x44aaff, 0.7)
-      gfx.strokeCircle(0, bob - 2, 22)
-      gfx.fillStyle(0x4488ff, 0.12)
-      gfx.fillCircle(0, bob - 2, 22)
-      // Shield sparkle
-      gfx.fillStyle(0xffffff, 0.5)
-      gfx.fillCircle(-14, bob - 10, 2)
-      gfx.fillCircle(12, bob + 4, 1.5)
+      gfx.strokeCircle(0, -hover, 24)
+      gfx.lineStyle(1, 0x88ddff, 0.4)
+      gfx.strokeCircle(0, -hover, 22)
+      gfx.fillStyle(0x2266ff, 0.08)
+      gfx.fillCircle(0, -hover, 24)
+      // Sparkle nodes
+      gfx.fillStyle(0x88ccff, 0.8)
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2
+        gfx.fillCircle(Math.cos(a) * 24, Math.sin(a) * 24 - hover, 2)
+      }
     }
   }
 
@@ -1341,11 +1361,12 @@ export default class GameScene extends Phaser.Scene {
       const lx = label.x * TS + H
       const ly = label.y * TS - progress * 30
       const txt = this.add.text(lx, ly, label.text, {
-        fontSize: '10px',
-        fontFamily: '"Press Start 2P", monospace',
-        color: label.color || '#30c060',
+        fontSize: '13px',
+        fontFamily: '"Rajdhani", "Outfit", sans-serif',
+        fontStyle: 'bold',
+        color: label.color || '#00e87a',
         stroke: '#000000',
-        strokeThickness: 2,
+        strokeThickness: 3,
       }).setOrigin(0.5, 1).setDepth(7).setAlpha(Math.max(0, 1 - progress))
       this.labelTexts.push(txt)
     }
@@ -1357,7 +1378,9 @@ export default class GameScene extends Phaser.Scene {
       ? state.players[this.userId]
       : Object.values(state.players)[0]
 
-    if (myPlayer && myPlayer.alive) {
+    // Follow player if alive OR if waiting to respawn (so camera stays at spawn zone)
+    const isTracking = myPlayer && (myPlayer.alive || (myPlayer.respawnTimer || 0) > 0)
+    if (isTracking) {
       this.camTarget.x = myPlayer.px + H
       this.camTarget.y = myPlayer.py + H
 

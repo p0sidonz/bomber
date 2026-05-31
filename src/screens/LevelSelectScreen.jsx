@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { playBGM } from '../game/audio/audio'
 
-const DEBUG = false // set to false to lock levels again
+const DEBUG = true // set to false to lock levels again
 
 export default function LevelSelectScreen({ user, campaign, nav }) {
   useEffect(() => {
@@ -33,19 +33,19 @@ export default function LevelSelectScreen({ user, campaign, nav }) {
     <div className="full-screen bg-bm-dark relative overflow-hidden flex flex-col items-center pt-8 pb-4">
       {/* Dynamic Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a2a] to-[#1a1a3a] z-0" />
-      <div className="absolute inset-0 opacity-10 pointer-events-none select-none text-[80px] flex flex-wrap gap-12 p-8 z-0 animate-pulse mix-blend-overlay">
-        {Array.from({ length: 30 }).map((_, i) => <span key={i}>💥</span>)}
+      <div className="absolute inset-0 opacity-[0.06] pointer-events-none select-none text-[80px] flex flex-wrap gap-12 p-8 z-0" style={{ filter: 'hue-rotate(200deg)' }}>
+        {Array.from({ length: 30 }).map((_, i) => <span key={i}>⬡</span>)}
       </div>
 
       <div className="relative z-10 w-full max-w-2xl px-4 flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 shrink-0 bg-black/40 p-4 rounded-xl border border-gray-800 shadow-2xl backdrop-blur-sm">
           <div>
-            <h1 className="logo-text text-2xl sm:text-4xl mb-1 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-500 drop-shadow-[0_0_15px_rgba(255,165,0,0.8)]">
-              CAMPAIGN MAP
+            <h1 className="logo-text text-2xl sm:text-4xl mb-1 text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-500 drop-shadow-[0_0_15px_rgba(0,180,255,0.8)]">
+              SECTOR MAP
             </h1>
-            <p className="text-[10px] text-bm-accent tracking-widest font-bold">
-              YOUR JOURNEY AWAITS...
+            <p className="text-[10px] tracking-widest font-bold" style={{ color: '#00d4ff' }}>
+              SELECT YOUR DEPLOYMENT ZONE
             </p>
           </div>
           <button 
@@ -96,9 +96,9 @@ export default function LevelSelectScreen({ user, campaign, nav }) {
                         `}
                       >
                         {isCurrent ? (
-                          <span className="text-2xl drop-shadow-md">💣</span>
+                          <span className="text-2xl drop-shadow-md" style={{ filter: 'drop-shadow(0 0 8px #00d4ff)' }}>◉</span>
                         ) : isCompleted ? (
-                          <span className="font-['Press_Start_2P'] text-[14px] text-yellow-200 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">{level}</span>
+                          <span style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 16, fontWeight: 900, color: '#f0c040' }}>{level}</span>
                         ) : (
                           <span className="text-sm opacity-50">🔒</span>
                         )}
@@ -106,8 +106,8 @@ export default function LevelSelectScreen({ user, campaign, nav }) {
 
                       {/* Tooltip for current level */}
                       {isCurrent && (
-                        <div className="absolute -bottom-8 font-['Press_Start_2P'] text-[10px] text-yellow-300 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] whitespace-nowrap bg-black/60 px-3 py-1 rounded-full border border-yellow-500/30">
-                          STAGE {level}
+                        <div className="absolute -bottom-8 text-[11px] whitespace-nowrap bg-black/70 px-3 py-1 rounded-full border border-cyan-500/40" style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontWeight: 700, letterSpacing: '0.1em', color: '#00d4ff' }}>
+                          SECTOR {level}
                         </div>
                       )}
                     </div>

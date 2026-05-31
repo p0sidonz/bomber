@@ -7,19 +7,19 @@ import { updateEnemies } from '../game/enemies/enemies.js'
 import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM, setBGMFast, toggleMute, getIsMuted } from '../game/audio/audio.js'
 import { insertHighScore, saveCampaignProgress } from '../supabase.js'
-import { showInterstitialAd } from '../admob.js'
+import { adOnGameOver, adOnLevelClear, adOnQuit } from '../admob.js'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50 // ms per game tick (20 tps)
-const DEBUG = false // set to false to hide debug buttons
+const DEBUG = true // set to false to hide debug buttons
 
 const PW_COLORS_CSS = {
-  extrabomb: '#f0c040', fireup: '#ff4400', speedup: '#40ff40',
-  kick: '#ff8800', remote: '#8888ff', bombpass: '#cccccc',
-  wallpass: '#aaffaa', fullfire: '#ff2200', skull: '#aa0000',
-  clock: '#00ccff', mystery: '#ff00ff', gatebomb: '#ffaa00',
-  shield: '#4488ff', decoy: '#ff88ff', blockitem: '#888888', swap: '#00ffcc',
+  extrabomb: '#ffcc00', fireup: '#ff4400', speedup: '#00ff88',
+  kick: '#ff8800', remote: '#8888ff', bombpass: '#aabbcc',
+  wallpass: '#88ffbb', fullfire: '#ff2200', skull: '#cc0044',
+  clock: '#00ccff', mystery: '#ff44ff', gatebomb: '#ffaa00',
+  shield: '#44aaff', decoy: '#ff88ff', blockitem: '#8899aa', swap: '#00ffcc',
 }
 
 export default function ClassicGameScreen({ user, campaign, setCampaign, startingLevel = 1, nav }) {
@@ -50,7 +50,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
   const displayName = user?.user_metadata?.display_name || 'PLAYER'
 
   function loadLevel(level) {
-    const { grid, hiddenGateTile, hiddenPowerupTile, powerupType, enemies, playerSpawn, config } = generateLevel(level)
+    const { grid, hiddenGateTile, hiddenPowerupTile, hiddenEggTile, powerupType, enemies, playerSpawn, config } = generateLevel(level)
     const playerConfig = [{
       userId: user.id,
       name: displayName,
@@ -64,6 +64,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
     s.timer = config.timer * 20 // convert to ticks
     s.hiddenGateTile = hiddenGateTile
     s.hiddenPowerupTile = hiddenPowerupTile
+    s.hiddenEggTile = hiddenEggTile  // mystery egg tile (50% chance per level)
     s.powerupType = powerupType
     s.enemies = enemies
 
@@ -205,7 +206,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         state.status = 'game_over'
         stopBGM()
         setOverlay('game_over')
-        showInterstitialAd() // AdMob Trigger: Game over/lost
+        adOnGameOver() // AdMob Trigger: Game over / drone destroyed
       }
       return
     }
@@ -248,7 +249,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
     stopBGM()
     setOverlay('level_clear')
     stateRef.current.status = 'cleared'
-    showInterstitialAd() // AdMob Trigger: Level cleared
+    adOnLevelClear() // AdMob Trigger: Sector cleared
 
     const player = stateRef.current ? Object.values(stateRef.current.players)[0] : null
     if (player) {
@@ -403,6 +404,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
   function handleQuit() {
     saveHighScore()
     stopBGM()
+    adOnQuit() // AdMob Trigger: Player quit mid-game or used back button
     nav('level_select')
   }
 
@@ -423,7 +425,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         fontFamily: '"Press Start 2P", monospace',
         pointerEvents: 'none',
       }}>
-        ← → ↑ ↓ MOVE · SPACE BOMB · ESC PAUSE
+      ← → ↑ ↓ MOVE  ·  SPACE PLASMA CHARGE  ·  ESC PAUSE
       </div>
 
       {/* Mobile Touch Controls */}
@@ -538,9 +540,9 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       {/* Overlays */}
       {overlay === 'paused' && (
         <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column', overflowY: 'auto' }}>
-          <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>
+          {/* <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>
             {showGuide ? '' : 'PAUSED'}
-          </h2>
+          </h2> */}
 
           {!showGuide ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '220px', marginBottom: 24 }}>
@@ -594,42 +596,59 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
       )}
 
       {overlay === 'level_clear' && (
-        <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 300 }}>
-          <div className="text-5xl">🎉</div>
-          <h2 className="text-pixel text-bm-green text-lg">LEVEL CLEAR!</h2>
-          <p style={{ fontSize: '8px', color: '#f0c040', fontFamily: '"Press Start 2P", monospace' }}>
-            Score: {hudData?.score || 0}
+      <div className="countdown-overlay flex-col gap-4" style={{ zIndex: 300 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 35%, #aaccff 0%, #4466ff 40%, #110088 100%)',
+            boxShadow: '0 0 30px rgba(80,0,255,0.8)',
+            animation: 'pulseGlow 0.8s ease-in-out infinite',
+          }} />
+          <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 28, fontWeight: 900, color: '#00e87a', letterSpacing: '0.1em' }}>SECTOR CLEAR</h2>
+          <p style={{ fontSize: '13px', color: '#ffcc00', fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.1em' }}>
+            SCORE: {hudData?.score || 0}
           </p>
-          <p style={{ fontSize: '7px', color: '#888', fontFamily: '"Press Start 2P", monospace' }}>
-            Next level loading...
+          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.15em' }}>
+            NEXT SECTOR LOADING...
           </p>
-        </div>
+      </div>
       )}
 
       {overlay === 'game_over' && (
         <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 300 }}>
-          <div className="text-5xl">💥</div>
-          <h2 className="text-pixel text-bm-red text-xl">GAME OVER</h2>
-          <p style={{ fontSize: '8px', color: '#f0c040', fontFamily: '"Press Start 2P", monospace' }}>
-            Score: {hudData?.score || 0} · Level: {hudData?.level || 1}
+          <div style={{
+            width: 56, height: 56, borderRadius: 8,
+            background: 'linear-gradient(135deg, #ff2244 0%, #880022 100%)',
+            boxShadow: '0 0 30px rgba(255,0,60,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 28,
+          }}>✕</div>
+          <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 30, fontWeight: 900, color: '#ff2244', letterSpacing: '0.1em' }}>SYSTEM FAILURE</h2>
+          <p style={{ fontSize: '13px', color: '#ffcc00', fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.08em' }}>
+            SCORE: {hudData?.score || 0}  ·  SECTOR: {hudData?.level || 1}
           </p>
           <div className="flex gap-3">
-            <button className="btn-pixel btn-primary" onClick={handleRestart}>RETRY</button>
-            <button className="btn-pixel" onClick={handleQuit}>MENU</button>
+            <button className="btn-pixel btn-primary" onClick={handleRestart}>RETRY MISSION</button>
+            <button className="btn-pixel" onClick={handleQuit}>MAIN BASE</button>
           </div>
         </div>
       )}
 
       {overlay === 'game_complete' && (
         <div className="countdown-overlay flex-col gap-6" style={{ zIndex: 300 }}>
-          <div className="text-5xl">🏆</div>
-          <h2 className="text-pixel text-bm-yellow text-base leading-loose text-center">
-            YOU BEAT<br />ALL 50 LEVELS!
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 35%, #ffcc44 0%, #ff8800 40%, #882200 100%)',
+            boxShadow: '0 0 40px rgba(255,160,0,0.8)',
+            animation: 'pulseGlow 1s ease-in-out infinite',
+            fontSize: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>★</div>
+          <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 26, fontWeight: 900, letterSpacing: '0.08em', textAlign: 'center', color: '#ffcc00' }}>
+            ALL SECTORS<br/>CONQUERED
           </h2>
-          <p style={{ fontSize: '8px', color: '#f0c040', fontFamily: '"Press Start 2P", monospace' }}>
-            Final Score: {hudData?.score || 0}
+          <p style={{ fontSize: '13px', color: '#00d4ff', fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.1em' }}>
+            FINAL SCORE: {hudData?.score || 0}
           </p>
-          <button className="btn-pixel btn-primary" onClick={handleQuit}>MAIN MENU</button>
+          <button className="btn-pixel btn-primary" onClick={handleQuit}>RETURN TO BASE</button>
         </div>
       )}
     </div>

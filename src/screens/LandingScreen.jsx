@@ -2,12 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { signOut, createRoom, joinRoomByCode } from '../supabase'
 import { showInterstitialAd } from '../admob'
 import { playBGM } from '../game/audio/audio'
+import PlasmaAnimation from '../components/PlasmaAnimation'
 
 const MENU_ITEMS = [
-  { id: 'classic', label: '▶ ENGAGE SOLO MODE', desc: '50 LEVELS · SINGLE PILOT' },
-  { id: 'create', label: '⊕ DEPLOY ARENA', desc: 'HOST MULTIPLAYER' },
-  { id: 'join', label: '⊞ JOIN ARENA', desc: 'ENTER ACCESS CODE' },
-  { id: 'leaderboard', label: '🏆 WAR RECORDS', desc: 'TOP PILOTS' },
+  { id: 'classic', label: '▶ SOLO MODE', desc: '50 LEVELS' },
+  { id: 'create', label: '⊕ HOST GAME', desc: 'MULTIPLAYER' },
+  { id: 'join', label: '⊞ JOIN GAME', desc: 'ENTER CODE' },
+  { id: 'leaderboard', label: '🏆 LEADERBOARD', desc: 'TOP PLAYERS' },
 ]
 
 export default function LandingScreen({ user, nav }) {
@@ -155,7 +156,7 @@ export default function LandingScreen({ user, nav }) {
             filter: 'drop-shadow(0 0 30px rgba(100,0,255,0.5))',
             marginTop: 12,
           }}>
-            NOVA STRIKE
+            Omega Arena
           </h1>
           <div className="flex items-center justify-center gap-3 mt-3">
             <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(0,212,255,0.4))' }} />
@@ -252,55 +253,6 @@ export default function LandingScreen({ user, nav }) {
         <span className="hidden sm:inline opacity-30">|</span>
         <a href="#delete-account" className="hover:text-red-400 transition-colors">Delete Account</a>
       </div>
-    </div>
-  )
-}
-
-// Animated plasma orb logo
-function PlasmaAnimation() {
-  return (
-    <div className="relative inline-block" style={{ width: 72, height: 72 }}>
-      {/* Outer glow rings */}
-      <div style={{
-        position: 'absolute', inset: -8,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(100,0,255,0.3) 0%, rgba(0,100,255,0.15) 50%, transparent 70%)',
-        animation: 'pulseGlow 2s ease-in-out infinite',
-      }} />
-      {/* Main plasma orb */}
-      <div style={{
-        width: 72, height: 72,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle at 35% 35%, #aaccff 0%, #4466ff 30%, #1100aa 60%, #050520 100%)',
-        boxShadow: '0 0 30px rgba(80,0,255,0.6), 0 0 60px rgba(80,0,255,0.3), inset 0 2px 8px rgba(255,255,255,0.3)',
-        animation: 'pulseGlow 1.8s ease-in-out infinite',
-        position: 'relative',
-      }}>
-        {/* Specular gloss */}
-        <div style={{
-          position: 'absolute', top: 14, left: 16,
-          width: 20, height: 12,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.45)',
-          transform: 'rotate(-20deg)',
-        }} />
-      </div>
-      {/* Orbiting energy spark */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        width: 8, height: 8, marginTop: -4, marginLeft: -4,
-        borderRadius: '50%',
-        background: '#00ffff',
-        boxShadow: '0 0 12px #00ffff',
-        animation: 'orbit 1.5s linear infinite',
-        transformOrigin: '40px 4px',
-      }} />
-      <style>{`
-        @keyframes orbit {
-          from { transform: rotate(0deg) translateX(36px); }
-          to { transform: rotate(360deg) translateX(36px); }
-        }
-      `}</style>
     </div>
   )
 }

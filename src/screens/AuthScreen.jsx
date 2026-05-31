@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { signIn, signUp, resetPasswordForEmail } from '../supabase'
+import { signIn, signUp, resetPasswordForEmail, signInWithGoogle } from '../supabase'
+import PlasmaAnimation from '../components/PlasmaAnimation'
 
-const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange']
+const COLORS = ['cyan', 'purple', 'green', 'red', 'yellow', 'orange']
 const COLOR_HEX = {
-  red: '#e03040', blue: '#3060e0', green: '#30c060',
-  yellow: '#f0c040', purple: '#9040c0', orange: '#e08030',
+  cyan: '#00d4ff', purple: '#cc44ff', green: '#00e87a',
+  red: '#ff2244', yellow: '#ffcc00', orange: '#ff7720',
 }
 
 export default function AuthScreen({ onAuth }) {
@@ -12,7 +13,7 @@ export default function AuthScreen({ onAuth }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [color, setColor] = useState('red')
+  const [color, setColor] = useState('cyan')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -63,28 +64,61 @@ export default function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full bg-bm-dark relative overflow-y-auto flex flex-col items-center justify-center py-8">
-      {/* Background bombs */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none select-none text-[120px] flex flex-wrap gap-8 p-8">
-        {Array.from({ length: 20 }).map((_, i) => <span key={i}>💣</span>)}
-      </div>
+    <div className="min-h-[100dvh] w-full relative overflow-y-auto flex flex-col items-center justify-center py-8"
+      style={{ background: 'radial-gradient(ellipse at 50% 30%, #0a0a2e 0%, #060610 60%, #030308 100%)' }}
+    >
+      {/* Animated space grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `
+          repeating-linear-gradient(0deg, rgba(0,212,255,0.04) 0, rgba(0,212,255,0.04) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg, rgba(0,212,255,0.04) 0, rgba(0,212,255,0.04) 1px, transparent 1px, transparent 48px)
+        `,
+        backgroundSize: '48px 48px',
+      }} />
+      {/* Top glow */}
+      <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(100,0,255,0.15) 0%, transparent 70%)',
+      }} />
 
       <div className="relative z-10 w-full max-w-md mx-4">
         {/* Logo */}
         <div className="text-center mb-10">
-          <h1 className="logo-text mb-2">NOVA STRIKE</h1>
-          <p className="text-[8px] text-gray-500 tracking-widest mt-3">BLAST YOUR WAY TO GLORY</p>
+          <PlasmaAnimation />
+          <h1 style={{
+            fontFamily: 'Rajdhani,Outfit,sans-serif',
+            fontWeight: 900,
+            fontSize: 'clamp(36px, 8vw, 56px)',
+            letterSpacing: '0.12em',
+            background: 'linear-gradient(135deg, #00d4ff 0%, #7744ff 40%, #ff44ff 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            filter: 'drop-shadow(0 0 30px rgba(100,0,255,0.5))',
+            margin: 0,
+            lineHeight: 1,
+          }}>
+            Omega Arena
+          </h1>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(0,212,255,0.4))' }} />
+            <span style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 10, letterSpacing: '0.3em', color: 'rgba(0,212,255,0.5)' }}>
+              DOMINATE THE GRID
+            </span>
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, rgba(0,212,255,0.4))' }} />
+          </div>
         </div>
 
         {/* Tab toggle */}
         {mode !== 'forgot' && (
-          <div className="flex mb-0 border-2 border-bm-border">
+          <div className="flex mb-4 p-1 bg-black/40 backdrop-blur-md rounded-xl border border-bm-border">
             <button
-              className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'login' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
+              style={{ fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.1em' }}
+              className={`flex-1 py-3 text-[13px] font-bold rounded-lg transition-all ${mode === 'login' ? 'bg-bm-accent text-black shadow-[0_0_15px_rgba(0,212,255,0.4)]' : 'text-gray-400 hover:text-white'}`}
               onClick={() => { setMode('login'); setError('') }}
             >LOGIN</button>
             <button
-              className={`flex-1 py-3 text-[9px] transition-colors ${mode === 'signup' ? 'bg-bm-accent text-black' : 'text-gray-400 hover:text-white'}`}
+              style={{ fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.1em' }}
+              className={`flex-1 py-3 text-[13px] font-bold rounded-lg transition-all ${mode === 'signup' ? 'bg-bm-accent text-black shadow-[0_0_15px_rgba(0,212,255,0.4)]' : 'text-gray-400 hover:text-white'}`}
               onClick={() => { setMode('signup'); setError('') }}
             >SIGN UP</button>
           </div>
@@ -159,7 +193,7 @@ export default function AuthScreen({ onAuth }) {
             )}
 
             {error && (
-              <div className="text-[8px] text-bm-red leading-loose border border-bm-red p-2">
+              <div className="text-[11px] font-bold text-bm-red bg-bm-red/10 border border-bm-red/30 p-3 rounded-lg text-center" style={{ fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.05em' }}>
                 ⚠ {error}
               </div>
             )}
@@ -173,29 +207,56 @@ export default function AuthScreen({ onAuth }) {
             </button>
             
             {mode === 'login' && (
-              <div className="text-center mt-4 pt-2 flex flex-col items-center gap-3">
+              <div className="text-center mt-6 pt-4 flex flex-col items-center gap-4 border-t border-bm-border/50">
                 <button 
                   type="button" 
-                  className="text-[7px] text-gray-500 hover:text-bm-accent transition-colors"
-                  onClick={() => { setMode('forgot'); setError('') }}
+                  className="btn-pixel w-full text-white"
+                  style={{ background: 'rgba(66, 133, 244, 0.2)', borderColor: 'rgba(66, 133, 244, 0.8)', color: '#fff' }}
+                  onClick={async () => {
+                    setError('')
+                    setLoading(true)
+                    try {
+                      const data = await signInWithGoogle()
+                      onAuth(data.user)
+                    } catch (err) {
+                      setError('Google Sign-In failed: ' + (err.message || 'Unknown error'))
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
                 >
-                  FORGOT PASSWORD?
+                  G SIGN IN WITH GOOGLE
+                </button>
+                <div className="w-full flex items-center justify-center gap-3">
+                  <div className="h-px flex-1 bg-bm-border" />
+                  <span className="text-[10px] text-gray-500 font-['Rajdhani']">OR</span>
+                  <div className="h-px flex-1 bg-bm-border" />
+                </div>
+                <button 
+                  type="button" 
+                  className="btn-pixel w-full"
+                  style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
+                  onClick={() => onAuth({ id: 'guest', isGuest: true, user_metadata: { display_name: 'Guest', color: 'cyan' } })}
+                >
+                  PLAY AS GUEST →
                 </button>
                 <button 
                   type="button" 
-                  className="btn-pixel bg-gray-700 w-full mt-2"
-                  onClick={() => onAuth({ id: 'guest', isGuest: true, user_metadata: { display_name: 'Guest', color: 'white' } })}
+                  style={{ fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.05em' }}
+                  className="text-[12px] text-gray-500 hover:text-bm-accent transition-colors mt-2"
+                  onClick={() => { setMode('forgot'); setError('') }}
                 >
-                  PLAY AS GUEST
+                  FORGOT PASSWORD?
                 </button>
               </div>
             )}
 
             {mode === 'forgot' && (
-              <div className="text-center mt-4 pt-2">
+              <div className="text-center mt-6 pt-4 border-t border-bm-border/50">
                 <button 
                   type="button" 
-                  className="text-[7px] text-gray-500 hover:text-bm-accent transition-colors"
+                  style={{ fontFamily: 'Rajdhani,sans-serif', letterSpacing: '0.05em' }}
+                  className="text-[12px] text-gray-500 hover:text-bm-accent transition-colors"
                   onClick={() => { setMode('login'); setError('') }}
                 >
                   ← BACK TO LOGIN

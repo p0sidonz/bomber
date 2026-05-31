@@ -1,5 +1,23 @@
 {
-  "appId": "com.bombrush.arena",
-  "appName": "BombRush Arena",
-  "webDir": "dist"
+  "appId": "com.iankit.omegaarena",
+  "appName": "Omega Arena",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2500,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 600,
+      "backgroundColor": "#04040e",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
 }

@@ -1,4 +1,4 @@
-import { AdMob, AdMobError } from '@capacitor-community/admob'
+import { AdMob } from '@capacitor-community/admob'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 

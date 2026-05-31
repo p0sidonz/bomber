@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -9,6 +10,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storageKey: 'bm_session',
     storage: localStorage,
   },
+})
+
+GoogleAuth.initialize({
+  clientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+  scopes: ['profile', 'email'],
+  grantOfflineAccess: true,
 })
 
 // ─── AUTH HELPERS ────────────────────────────────────────────────────────────
@@ -27,6 +34,16 @@ export async function signUp(email, password, displayName, color) {
 
 export async function signIn(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
+}
+
+export async function signInWithGoogle() {
+  const user = await GoogleAuth.signIn()
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'google',
+    token: user.authentication.idToken,
+  })
   if (error) throw error
   return data
 }

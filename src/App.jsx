@@ -46,13 +46,18 @@ export default function App() {
       const backListener = CapacitorApp.addListener('backButton', () => {
         setScreen(curr => {
           if (curr === 'classic' || curr === 'game') {
-            // Dispatch event for the game screen to handle (e.g. show pause menu)
+            // Let the game screen handle it (show pause menu)
             window.dispatchEvent(new CustomEvent('hw_back_pressed'))
             return curr
           }
           if (curr === 'landing' || curr === 'auth') {
             CapacitorApp.exitApp()
             return curr
+          }
+          // Always clear the hash when navigating away from legal/deep pages
+          // so a stale #privacy hash can't re-trigger the legal screen on auth refresh
+          if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname)
           }
           return 'landing'
         })
@@ -109,6 +114,11 @@ export default function App() {
     if (extra.room) setRoom(extra.room)
     if (extra.result) setGameResult(extra.result)
     if (extra.level) setLevel(extra.level)
+    // Clear any URL hash (e.g. #privacy, #tos) so it doesn't re-trigger
+    // a legal screen on the next Supabase auth event refresh
+    if (window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
     setScreen(s)
   }
 

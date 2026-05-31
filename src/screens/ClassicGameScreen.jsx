@@ -12,7 +12,7 @@ import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
 const TICK_RATE = 50 // ms per game tick (20 tps)
-const DEBUG = true // set to false to hide debug buttons
+const DEBUG = false // set to false to hide debug buttons
 
 const PW_COLORS_CSS = {
   extrabomb: '#ffcc00', fireup: '#ff4400', speedup: '#00ff88',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { playBGM } from '../game/audio/audio'
 
-const DEBUG = true // set to false to lock levels again
+const DEBUG = false // set to false to lock levels again
 
 export default function LevelSelectScreen({ user, campaign, nav }) {
   useEffect(() => {

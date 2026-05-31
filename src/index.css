@@ -50,7 +50,8 @@ html, body, #root {
   user-select: none;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: 0;
+  margin: 0;
 }
 
 /* =========================================================

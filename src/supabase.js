@@ -13,7 +13,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 })
 
 GoogleAuth.initialize({
-  clientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+  clientId: '992048408581-o5da8d4g4k8e0d8rspgb7smu16c2gbb1.apps.googleusercontent.com',
   scopes: ['profile', 'email'],
   grantOfflineAccess: true,
 })

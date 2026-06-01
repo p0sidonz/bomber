@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { signIn, signUp, resetPasswordForEmail, signInWithGoogle } from '../supabase'
 import PlasmaAnimation from '../components/PlasmaAnimation'
+import { Capacitor } from '@capacitor/core'
 
 const COLORS = ['cyan', 'purple', 'green', 'red', 'yellow', 'orange']
 const COLOR_HEX = {
@@ -208,30 +209,34 @@ export default function AuthScreen({ onAuth }) {
             
             {mode === 'login' && (
               <div className="text-center mt-6 pt-4 flex flex-col items-center gap-4 border-t border-bm-border/50">
-                <button 
-                  type="button" 
-                  className="btn-pixel w-full text-white"
-                  style={{ background: 'rgba(66, 133, 244, 0.2)', borderColor: 'rgba(66, 133, 244, 0.8)', color: '#fff' }}
-                  onClick={async () => {
-                    setError('')
-                    setLoading(true)
-                    try {
-                      const data = await signInWithGoogle()
-                      onAuth(data.user)
-                    } catch (err) {
-                      setError('Google Sign-In failed: ' + (err.message || 'Unknown error'))
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
-                >
-                  G SIGN IN WITH GOOGLE
-                </button>
-                <div className="w-full flex items-center justify-center gap-3">
-                  <div className="h-px flex-1 bg-bm-border" />
-                  <span className="text-[10px] text-gray-500 font-['Rajdhani']">OR</span>
-                  <div className="h-px flex-1 bg-bm-border" />
-                </div>
+                {Capacitor.isNativePlatform() && (
+                  <>
+                    <button 
+                      type="button" 
+                      className="btn-pixel w-full text-white"
+                      style={{ background: 'rgba(66, 133, 244, 0.2)', borderColor: 'rgba(66, 133, 244, 0.8)', color: '#fff' }}
+                      onClick={async () => {
+                        setError('')
+                        setLoading(true)
+                        try {
+                          const data = await signInWithGoogle()
+                          onAuth(data.user)
+                        } catch (err) {
+                          setError('Google Sign-In failed: ' + (err.message || 'Unknown error'))
+                        } finally {
+                          setLoading(false)
+                        }
+                      }}
+                    >
+                      G SIGN IN WITH GOOGLE
+                    </button>
+                    <div className="w-full flex items-center justify-center gap-3">
+                      <div className="h-px flex-1 bg-bm-border" />
+                      <span className="text-[10px] text-gray-500 font-['Rajdhani']">OR</span>
+                      <div className="h-px flex-1 bg-bm-border" />
+                    </div>
+                  </>
+                )}
                 <button 
                   type="button" 
                   className="btn-pixel w-full"

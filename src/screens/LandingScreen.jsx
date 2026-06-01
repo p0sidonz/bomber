@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { signOut, createRoom, joinRoomByCode } from '../supabase'
 import { showInterstitialAd } from '../admob'
+import { isAdFree, purchaseRemoveAds, restorePurchases, getRemoveAdsPrice } from '../purchases'
 import { playBGM } from '../game/audio/audio'
+import { Capacitor } from '@capacitor/core'
 import PlasmaAnimation from '../components/PlasmaAnimation'
 
 const MENU_ITEMS = [
@@ -18,6 +20,11 @@ export default function LandingScreen({ user, nav }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const joinInputRef = useRef(null)
+  const [purchaseLoading, setPurchaseLoading] = useState(false)
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false)
+  const [purchaseError, setPurchaseError] = useState('')
+  const [adFreeState, setAdFreeState] = useState(isAdFree())
+  const [priceStr, setPriceStr] = useState('$3')
   
   const isGuest = user?.isGuest
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'PILOT'
@@ -37,6 +44,10 @@ export default function LandingScreen({ user, nav }) {
       localStorage.setItem('last_app_open_ad_time', now.toString())
     }
     playBGM('menu')
+
+    // Refresh ad-free state & fetch price
+    setAdFreeState(isAdFree())
+    getRemoveAdsPrice().then(p => { if (p) setPriceStr(p) })
   }, [])
 
   useEffect(() => {
@@ -234,6 +245,91 @@ export default function LandingScreen({ user, nav }) {
           </div>
         )}
 
+        {/* Remove Ads Button — only shown if not purchased */}
+        {Capacitor.isNativePlatform() && !adFreeState && !showJoin && (
+          <button
+            id="btn-remove-ads"
+            disabled={purchaseLoading}
+            onClick={async () => {
+              setPurchaseLoading(true)
+              setPurchaseError('')
+              try {
+                const success = await purchaseRemoveAds()
+                if (success) {
+                  setAdFreeState(true)
+                  setPurchaseSuccess(true)
+                  setTimeout(() => setPurchaseSuccess(false), 4000)
+                }
+              } catch (err) {
+                setPurchaseError(err.message || 'Purchase failed')
+                setTimeout(() => setPurchaseError(''), 4000)
+              } finally {
+                setPurchaseLoading(false)
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              border: '1.5px solid rgba(255,200,0,0.3)',
+              background: 'linear-gradient(135deg, rgba(255,170,0,0.12) 0%, rgba(255,100,0,0.08) 100%)',
+              borderRadius: 10,
+              cursor: purchaseLoading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              transition: 'all 0.2s',
+              fontFamily: 'Rajdhani,Outfit,sans-serif',
+              marginTop: 4,
+              opacity: purchaseLoading ? 0.6 : 1,
+            }}
+            onMouseEnter={e => { if (!purchaseLoading) { e.currentTarget.style.borderColor = 'rgba(255,200,0,0.6)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(255,170,0,0.2), inset 0 1px 0 rgba(255,200,0,0.15)' }}}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,200,0,0.3)'; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: '#ffcc00' }}>
+              {purchaseLoading ? '⏳ PROCESSING...' : '✦ REMOVE ADS'}
+            </span>
+            <span style={{ fontSize: 12, color: 'rgba(255,200,0,0.5)', letterSpacing: '0.08em', fontWeight: 600 }}>
+              {priceStr}
+            </span>
+          </button>
+        )}
+
+        {/* Purchase success toast */}
+        {purchaseSuccess && (
+          <div style={{
+            padding: '10px 16px',
+            background: 'rgba(0,232,122,0.12)',
+            border: '1px solid rgba(0,232,122,0.3)',
+            borderRadius: 8,
+            fontFamily: 'Rajdhani,Outfit,sans-serif',
+            fontSize: 13,
+            color: '#00e87a',
+            letterSpacing: '0.08em',
+            fontWeight: 700,
+            textAlign: 'center',
+            animation: 'fadeIn 0.3s ease-out',
+          }}>
+            ✓ ADS REMOVED SUCCESSFULLY
+          </div>
+        )}
+
+        {/* Purchase error toast */}
+        {purchaseError && (
+          <div style={{
+            padding: '10px 16px',
+            background: 'rgba(255,34,68,0.12)',
+            border: '1px solid rgba(255,34,68,0.3)',
+            borderRadius: 8,
+            fontFamily: 'Rajdhani,Outfit,sans-serif',
+            fontSize: 12,
+            color: '#ff2244',
+            letterSpacing: '0.06em',
+            textAlign: 'center',
+          }}>
+            ⚠ {purchaseError}
+          </div>
+        )}
+
         {error && !showJoin && <p style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 12, color: '#ff2244' }}>⚠ {error}</p>}
 
         <p style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.12em' }}>
@@ -252,6 +348,33 @@ export default function LandingScreen({ user, nav }) {
         <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
         <span className="hidden sm:inline opacity-30">|</span>
         <a href="#delete-account" className="hover:text-red-400 transition-colors">Delete Account</a>
+        {Capacitor.isNativePlatform() && (
+          <>
+            <span className="hidden sm:inline opacity-30">|</span>
+            <button
+              onClick={async () => {
+                try {
+                  const found = await restorePurchases()
+                  if (found) {
+                    setAdFreeState(true)
+                    setPurchaseSuccess(true)
+                    setTimeout(() => setPurchaseSuccess(false), 4000)
+                  } else {
+                    setPurchaseError('No previous purchase found')
+                    setTimeout(() => setPurchaseError(''), 3000)
+                  }
+                } catch (err) {
+                  setPurchaseError(err.message || 'Restore failed')
+                  setTimeout(() => setPurchaseError(''), 3000)
+                }
+              }}
+              className="hover:text-blue-400 transition-colors"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', padding: 0 }}
+            >
+              Restore Purchases
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { AdMob } from '@capacitor-community/admob'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
+import { isAdFree } from './purchases.js'
 
 // ─── AD UNIT IDs ──────────────────────────────────────────────────────────────
 // Google Test IDs — replace with real IDs before publishing
@@ -18,6 +19,10 @@ const MIN_INTERVAL  = 30_000      // 30s minimum between ads (Google policy)
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 export async function initializeAdMob() {
   if (!Capacitor.isNativePlatform()) return
+  if (isAdFree()) {
+    console.log('[AdMob] Skipped init (ad-free purchase)')
+    return
+  }
   try {
     await AdMob.initialize({
       requestTrackingAuthorization: true,
@@ -64,6 +69,11 @@ async function _preloadAd() {
  * @returns {Promise<boolean>} true if the ad was shown, false otherwise
  */
 export async function showInterstitialAd(reason = 'unknown') {
+  // Skip all ads if user purchased "Remove Ads"
+  if (isAdFree()) {
+    console.log(`[AdMob] Skipped (ad-free purchase) — ${reason}`)
+    return false
+  }
   if (!Capacitor.isNativePlatform() || !isInitialized) return false
 
   // Rate limit: don't show more than once per MIN_INTERVAL

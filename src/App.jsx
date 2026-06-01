@@ -15,6 +15,7 @@ import TosScreen from './screens/TosScreen'
 import ContactScreen from './screens/ContactScreen'
 import DeleteAccountScreen from './screens/DeleteAccountScreen'
 import { initializeAdMob } from './admob'
+import { initPurchases } from './purchases'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
@@ -39,7 +40,7 @@ export default function App() {
   }, [user])
 
   useEffect(() => {
-    initializeAdMob()
+    initPurchases().then(() => initializeAdMob())
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error(e))
       

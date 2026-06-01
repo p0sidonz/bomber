@@ -134,23 +134,6 @@ export function detonateBomb(state, bombId) {
             state.powerupsOnMap.push({ x: ex, y: ey, type: 'egg' })
             state.hiddenEggTile = null
           }
-        } else if (state.grid[ey][ex] !== TILE.GATE) {
-          // Random powerup drop — 20% chance on any other soft block
-          if (Math.random() < 0.20) {
-            const level = state.level || 1
-            let pwPool
-            if (level <= 3) {
-              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP]
-            } else if (level <= 8) {
-              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.EXTRA_BOMB]
-            } else if (level <= 15) {
-              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.FULL_FIRE, POWERUP.REMOTE]
-            } else {
-              pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.KICK, POWERUP.FULL_FIRE, POWERUP.REMOTE, POWERUP.CLOCK, POWERUP.MYSTERY]
-            }
-            const type = pwPool[Math.floor(Math.random() * pwPool.length)]
-            state.powerupsOnMap.push({ x: ex, y: ey, type })
-          }
         }
       } else {
         // Multiplayer: fewer powerups, only core types

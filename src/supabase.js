@@ -217,6 +217,22 @@ export async function upsertLeaderboard(userId, displayName, wins, kills, gamesP
 
 export async function insertHighScore(userId, displayName, score, levelReached) {
   if (userId === 'guest') return
+  
+  // Check existing best score
+  const { data: existing } = await supabase
+    .from('high_scores')
+    .select('score')
+    .eq('user_id', userId)
+    .order('score', { ascending: false })
+    .limit(1)
+
+  if (existing && existing.length > 0 && existing[0].score >= score) {
+    return // Not a new personal best
+  }
+
+  // Clean up old scores for this user so they only have 1 entry
+  await supabase.from('high_scores').delete().eq('user_id', userId)
+
   const { error } = await supabase
     .from('high_scores')
     .insert({ user_id: userId, display_name: displayName, score, level_reached: levelReached })
@@ -238,9 +254,20 @@ export async function getHighScores() {
     .from('high_scores')
     .select('*')
     .order('score', { ascending: false })
-    .limit(20)
+    .limit(1000)
   if (error) throw error
-  return data
+
+  // Deduplicate on the fly (for legacy entries before cleanup was added)
+  const seen = new Set()
+  const unique = []
+  for (const row of (data || [])) {
+    if (!seen.has(row.user_id)) {
+      seen.add(row.user_id)
+      unique.push(row)
+      if (unique.length === 20) break
+    }
+  }
+  return unique
 }
 
 export async function getPersonalStats(userId) {

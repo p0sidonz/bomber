@@ -94,6 +94,21 @@ export function detonateBomb(state, bombId) {
   }
   state.explosions.push(explosion)
 
+  // Chain reaction: detonate any bombs in explosion tiles
+  const explosionPositions = new Set(explosionTiles.map(t => `${t.pos[0]},${t.pos[1]}`))
+
+  // Destroy powerups caught in explosion (DO THIS BEFORE SPAWNING NEW ONES)
+  if (state.powerupsOnMap) {
+    state.powerupsOnMap = state.powerupsOnMap.filter(p => {
+      const hit = explosionPositions.has(`${p.x},${p.y}`)
+      if (hit) {
+        if (p.type === 'egg') crackEgg(state, p.x, p.y)
+        return false // remove it
+      }
+      return true
+    })
+  }
+
   // Destroy soft blocks + spawn powerups
   for (const { pos, hit } of explosionTiles) {
     if (hit === 'soft') {
@@ -121,10 +136,8 @@ export function detonateBomb(state, bombId) {
           }
         } else if (state.grid[ey][ex] !== TILE.GATE) {
           // Random powerup drop — 20% chance on any other soft block
-          // This ensures every level has plenty of discoverable powerups
           if (Math.random() < 0.20) {
             const level = state.level || 1
-            // Scale powerup pool by level — early = basic, later = more variety
             let pwPool
             if (level <= 3) {
               pwPool = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP, POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP]
@@ -147,7 +160,6 @@ export function detonateBomb(state, bombId) {
             POWERUP.KICK, POWERUP.FULL_FIRE,
           ]
           const type = pwTypes[Math.floor(Math.random() * pwTypes.length)]
-          // Don't spawn powerup on gate tile
           if (state.grid[ey][ex] !== TILE.GATE) {
             state.powerupsOnMap.push({ x: ex, y: ey, type })
           }
@@ -155,8 +167,6 @@ export function detonateBomb(state, bombId) {
       }
     }
 
-    // Portal gates: bomb-open them
-    const [ex, ey] = pos
     const gate = state.gates?.find(g => g.x === ex && g.y === ey && !g.open)
     if (gate) {
       gate.open = true
@@ -164,8 +174,6 @@ export function detonateBomb(state, bombId) {
     }
   }
 
-  // Chain reaction: detonate any bombs in explosion tiles
-  const explosionPositions = new Set(explosionTiles.map(t => `${t.pos[0]},${t.pos[1]}`))
   const chainBombs = state.bombs.filter(b => explosionPositions.has(`${b.x},${b.y}`))
   for (const cb of chainBombs) {
     detonateBomb(state, cb.id)
@@ -190,18 +198,6 @@ export function detonateBomb(state, bombId) {
     if (explosionPositions.has(`${etx},${ety}`)) {
       damageEnemy(state, enemy, bomb.ownerId)
     }
-  }
-
-  // Destroy powerups caught in explosion
-  if (state.powerupsOnMap) {
-    state.powerupsOnMap = state.powerupsOnMap.filter(p => {
-      const hit = explosionPositions.has(`${p.x},${p.y}`)
-      if (hit) {
-        if (p.type === 'egg') crackEgg(state, p.x, p.y)
-        return false // remove it
-      }
-      return true
-    })
   }
 }
 

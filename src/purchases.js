@@ -78,8 +78,14 @@ export async function purchaseRemoveAds() {
     return false
   }
   if (!initialized) {
-    console.warn('[Purchases] Billing not initialized yet')
-    return false
+    console.warn('[Purchases] Billing not initialized yet, attempting to initialize...')
+    try {
+      const NativePurchases = await getNativePurchases()
+      await NativePurchases.initialize()
+      initialized = true
+    } catch (e) {
+      throw new Error('Billing service is unavailable or initializing failed.')
+    }
   }
 
   try {

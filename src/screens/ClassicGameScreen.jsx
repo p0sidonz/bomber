@@ -29,6 +29,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
   const [overlay, setOverlay] = useState(null) // null | 'paused' | 'level_clear' | 'game_over' | 'game_complete'
   const [muted, setMuted] = useState(getIsMuted())
   const [showGuide, setShowGuide] = useState(false)
+  const clearLevelTimeoutRef = useRef(null)
 
   // Handle hardware back button
   useEffect(() => {
@@ -191,8 +192,8 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
     // Timer
     state.timer--
     if (state.timer <= 0) {
-      spawnOneals(state)
-      state.timer = 300 * 20
+      player.lives = 0
+      player.alive = false
     }
     if (state.timer === 600) {
       sfx.timerWarning()
@@ -289,7 +290,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         .catch(err => console.error('Failed to save campaign:', err))
     }
 
-    setTimeout(() => {
+    clearLevelTimeoutRef.current = setTimeout(() => {
       const nextLevel = levelRef.current + 1
       if (nextLevel > 50) {
         setOverlay('game_complete')
@@ -389,11 +390,13 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
     return () => {
       destroyInput()
       clearInterval(tickIntervalRef.current)
+      if (clearLevelTimeoutRef.current) clearTimeout(clearLevelTimeoutRef.current)
       stopBGM()
     }
   }, [startingLevel])
 
   function handleRestart() {
+    if (clearLevelTimeoutRef.current) clearTimeout(clearLevelTimeoutRef.current)
     const currentLevel = levelRef.current
     loadLevel(currentLevel)
     setOverlay(null)

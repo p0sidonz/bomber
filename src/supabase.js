@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth'
+import { Capacitor } from '@capacitor/core'
+
+let GoogleAuth = null
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -12,11 +14,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 })
 
-GoogleAuth.initialize({
-  clientId: '992048408581-o5da8d4g4k8e0d8rspgb7smu16c2gbb1.apps.googleusercontent.com',
-  scopes: ['profile', 'email'],
-  grantOfflineAccess: true,
-})
+async function getGoogleAuth() {
+  if (GoogleAuth) return GoogleAuth
+  try {
+    const mod = await import('@codetrix-studio/capacitor-google-auth')
+    GoogleAuth = mod.GoogleAuth
+    GoogleAuth.initialize({
+      clientId: '992048408581-o5da8d4g4k8e0d8rspgb7smu16c2gbb1.apps.googleusercontent.com',
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    })
+    return GoogleAuth
+  } catch (e) {
+    console.error('[GoogleAuth] Failed to load:', e)
+    throw new Error('Google Sign-In is not available')
+  }
+}
 
 // ─── AUTH HELPERS ────────────────────────────────────────────────────────────
 
@@ -39,12 +52,44 @@ export async function signIn(email, password) {
 }
 
 export async function signInWithGoogle() {
-  const user = await GoogleAuth.signIn()
+  const auth = await getGoogleAuth()
+
+  let googleUser
+  try {
+    googleUser = await auth.signIn()
+  } catch (e) {
+    const code = e?.code || ''
+    const msg = e?.message || ''
+    if (code === '12501' || msg.includes('cancel') || msg.includes('Cancel')) {
+      throw new Error('Sign-in cancelled')
+    }
+    if (code === '10') {
+      throw new Error('Google config error — check SHA-1 fingerprint in Google Cloud Console')
+    }
+    console.error('[GoogleAuth] signIn error:', JSON.stringify(e))
+    throw new Error(msg || 'Google Sign-In failed (code: ' + code + ')')
+  }
+
+  const idToken = googleUser?.authentication?.idToken
+  if (!idToken) {
+    console.error('[GoogleAuth] No idToken in response:', JSON.stringify(googleUser))
+    throw new Error('No ID token received from Google')
+  }
+
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
-    token: user.authentication.idToken,
+    token: idToken,
   })
   if (error) throw error
+
+  // Set display name from Google profile if missing
+  if (data?.user && !data.user.user_metadata?.display_name) {
+    const gName = googleUser.name || googleUser.givenName || googleUser.email?.split('@')[0] || 'Player'
+    await supabase.auth.updateUser({
+      data: { display_name: gName.substring(0, 12), color: 'cyan' }
+    }).catch(() => {})
+  }
+
   return data
 }
 

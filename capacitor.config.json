@@ -26,7 +26,6 @@
     }
   },
   "android": {
-    "overrideUserAgent": "OmegaArena",
     "backgroundColor": "#04040e",
     "allowMixedContent": true
   }

@@ -92,7 +92,7 @@ export async function purchaseRemoveAds() {
       billingSupported = true
       initialized = true
     } catch (e) {
-      throw new Error('Billing service is unavailable. Please try again later.')
+      throw new Error('Billing service is unavailable. Please try again later.', JSON.stringify(e))
     }
   }
 

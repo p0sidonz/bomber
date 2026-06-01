@@ -29,14 +29,12 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {})
-      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
       StatusBar.hide().catch(() => {})
       StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
 
       return () => {
-        ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(() => {})
         StatusBar.show().catch(() => {})
-        StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
+        ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(() => {})
       }
     }
   }, [])

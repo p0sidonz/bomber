@@ -2,6 +2,11 @@ import { Capacitor } from '@capacitor/core'
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const PRODUCT_ID = 'remove_ads'
+export const PRODUCT_UNLOCK_ALL = 'unlock_all_levels'
+export const PRODUCT_5_COINS = 'buy_5_coins'
+export const PRODUCT_20_COINS = 'buy_20_coins'
+export const PRODUCT_50_COINS = 'buy_50_coins'
+
 const STORAGE_KEY = 'omega_ad_free'
 const PURCHASE_TIMEOUT_MS = 90000
 
@@ -122,6 +127,50 @@ export async function purchaseRemoveAds() {
   }
 }
 
+export async function purchaseItem(productId) {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn('[Purchases] Cannot purchase on web')
+    // Mock success on web for testing
+    return true 
+  }
+
+  const { NativePurchases, PURCHASE_TYPE } = await getNativePurchases()
+
+  if (!initialized) {
+    try {
+      const { isBillingSupported: supported } = await withTimeout(NativePurchases.isBillingSupported(), 10000, 'Billing check')
+      if (!supported) throw new Error('Billing not supported')
+      billingSupported = true
+      initialized = true
+    } catch (e) {
+      throw new Error('Billing service is unavailable.', JSON.stringify(e))
+    }
+  }
+
+  try {
+    const result = await withTimeout(
+      NativePurchases.purchaseProduct({
+        productIdentifier: productId,
+        productType: PURCHASE_TYPE.INAPP,
+        quantity: 1,
+        autoAcknowledgePurchases: true, // We auto-consume for coins to allow rebuying
+      }),
+      PURCHASE_TIMEOUT_MS,
+      'Purchase ' + productId
+    )
+
+    console.log('[Purchases] Purchase result for ' + productId + ':', result)
+    return true
+  } catch (e) {
+    if (e?.message?.includes('cancel') || e?.message?.includes('Cancel') || e?.code === 'USER_CANCELLED') {
+      console.log('[Purchases] User cancelled purchase:', productId)
+      return false
+    }
+    console.error('[Purchases] Purchase failed for ' + productId + ':', e?.message || e)
+    throw e
+  }
+}
+
 export async function restorePurchases() {
   if (!Capacitor.isNativePlatform()) {
     console.warn('[Purchases] Cannot restore on web')
@@ -185,21 +234,20 @@ async function _syncOwnedPurchases(NativePurchases, PURCHASE_TYPE) {
 
     const purchases = result?.purchases || []
 
-    const hasRemoveAds = purchases.some(
-      p => p.productIdentifier === PRODUCT_ID
-    )
+    const hasRemoveAds = purchases.some(p => p.productIdentifier === PRODUCT_ID)
+    const hasUnlockAll = purchases.some(p => p.productIdentifier === PRODUCT_UNLOCK_ALL)
 
     if (hasRemoveAds) {
       persistAdFree(true)
       console.log('[Purchases] "Remove Ads" found in owned purchases')
-      return true
     } else {
       persistAdFree(false)
       console.log('[Purchases] No "Remove Ads" purchase found')
-      return false
     }
+
+    return { hasRemoveAds, hasUnlockAll }
   } catch (e) {
     console.warn('[Purchases] Sync owned purchases failed:', e?.message || e)
-    return false
+    return { hasRemoveAds: false, hasUnlockAll: false }
   }
 }

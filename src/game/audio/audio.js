@@ -31,6 +31,27 @@ export function getIsMuted() {
   return isMuted
 }
 
+let _bgmSuspended = false
+
+export function suspendAudio() {
+  // Pause the BGM scheduling loop so no new oscillators are created
+  if (bgmPlaying && bgmTimeout) {
+    clearTimeout(bgmTimeout)
+    bgmTimeout = null
+    _bgmSuspended = true
+  }
+  if (ctx && ctx.state === 'running') ctx.suspend()
+}
+
+export function resumeAudio() {
+  if (ctx && ctx.state === 'suspended') ctx.resume()
+  // Restart BGM scheduling if it was suspended mid-play
+  if (_bgmSuspended && bgmPlaying && currentBgmTrack) {
+    _bgmSuspended = false
+    playBGM(currentBgmTrack, bgmFast)
+  }
+}
+
 // ─── CORE SYNTH PRIMITIVES ────────────────────────────────────────────────────
 
 function playTone(freq, type, duration, gainVal = 0.3, startTime = 0) {

@@ -115,25 +115,28 @@ export function detonateBomb(state, bombId) {
       const [ex, ey] = pos
       state.grid[ey][ex] = TILE.EMPTY
 
+      // Award points for destroying a wall
+      if (bomb.ownerId && state.players[bomb.ownerId]) {
+        state.players[bomb.ownerId].score = (state.players[bomb.ownerId].score || 0) + 10
+      }
+
       // Reveal gate if hidden here
       if (state.hiddenGateTile && state.hiddenGateTile[0] === ex && state.hiddenGateTile[1] === ey) {
         state.grid[ey][ex] = TILE.GATE
         state.gateVisible = true
         state.hiddenGateTile = null
-      }
-
-      // Reveal powerup if hidden here (Singleplayer deterministic)
-      if (state.mode === 'singleplayer') {
+      } else if (state.guaranteedFirstDrop) {
+        // Pre-game loadout guaranteed drop
+        state.powerupsOnMap.push({ x: ex, y: ey, type: state.guaranteedFirstDrop })
+        state.guaranteedFirstDrop = null
+      } else if (state.mode === 'singleplayer') {
+        // Standard hidden powerup reveal
         if (state.hiddenPowerupTile && state.hiddenPowerupTile[0] === ex && state.hiddenPowerupTile[1] === ey) {
-          if (state.grid[ey][ex] !== TILE.GATE) {
-            state.powerupsOnMap.push({ x: ex, y: ey, type: state.powerupType || 'extrabomb' })
-            state.hiddenPowerupTile = null
-          }
+          state.powerupsOnMap.push({ x: ex, y: ey, type: state.powerupType || 'extrabomb' })
+          state.hiddenPowerupTile = null
         } else if (state.hiddenEggTile && state.hiddenEggTile[0] === ex && state.hiddenEggTile[1] === ey) {
-          if (state.grid[ey][ex] !== TILE.GATE) {
-            state.powerupsOnMap.push({ x: ex, y: ey, type: 'egg' })
-            state.hiddenEggTile = null
-          }
+          state.powerupsOnMap.push({ x: ex, y: ey, type: 'egg' })
+          state.hiddenEggTile = null
         }
       } else {
         // Multiplayer: fewer powerups, only core types
@@ -257,8 +260,6 @@ export function killPlayer(state, userId, killerId) {
       player.py = player.startY * 48
       player.x = player.startX
       player.y = player.startY
-      player.powerups = []
-      player.speed = 8
       player.activeBombs = 0
     }
   } else {
@@ -301,12 +302,7 @@ export function damageEnemy(state, enemy, killerId) {
     // Coin enemy drops powerup
     if (enemy.type === 'Coin' || enemy.dropsPowerup) {
       // Find powerup types for single-player
-      const pwTypes = [POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP]
-      state.powerupsOnMap.push({
-        x: enemy.x,
-        y: enemy.y,
-        type: pwTypes[Math.floor(Math.random() * pwTypes.length)],
-      })
+      // Powerups are now strictly limited to 1 per level via hidden blocks
     }
 
     // Slime splitting logic
@@ -426,8 +422,8 @@ export function updateGates(state) {
 
 // ─── REMOTE DETONATE ─────────────────────────────────────────────────────────
 export function remoteDetonate(state, userId) {
-  const myBombs = state.bombs.filter(b => b.ownerId === userId && b.remote)
-  for (const b of myBombs) {
-    detonateBomb(state, b.id)
+  const oldestBomb = state.bombs.find(b => b.ownerId === userId && b.remote)
+  if (oldestBomb) {
+    detonateBomb(state, oldestBomb.id)
   }
 }

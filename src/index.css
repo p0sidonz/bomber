@@ -413,3 +413,81 @@ canvas {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-slide-in { animation: slideIn 0.2s ease-out forwards; }
+
+/* =========================================================
+   MAIN MENU — Premium Animations
+   ========================================================= */
+
+/* Staggered entrance for menu cards */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Floating particles */
+@keyframes particleFloat {
+  0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-20vh) scale(1); opacity: 0; }
+}
+
+/* Subtle scan line effect */
+@keyframes scanLine {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* Nebula float animation */
+@keyframes nebulaFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(30px, -20px) scale(1.05); }
+  50%  { transform: translate(-20px, 15px) scale(0.95); }
+  75%  { transform: translate(15px, 25px) scale(1.02); }
+}
+
+/* Reactor core pulse */
+@keyframes reactorPulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(0,212,255,0.4), 0 0 60px rgba(100,0,255,0.3), inset 0 0 20px rgba(0,212,255,0.2); transform: scale(1); }
+  50%  { box-shadow: 0 0 50px rgba(0,212,255,0.6), 0 0 100px rgba(100,0,255,0.4), inset 0 0 30px rgba(0,212,255,0.3); transform: scale(1.04); }
+}
+
+/* Energy ring spin */
+@keyframes energyRingSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes energyRingSpinReverse {
+  from { transform: translate(-50%, -50%) rotate(360deg); }
+  to   { transform: translate(-50%, -50%) rotate(0deg); }
+}
+
+/* Shimmer sweep across cards */
+@keyframes shimmerSweep {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Title text glow pulse */
+@keyframes titleGlow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(0,212,255,0.5)) drop-shadow(0 0 40px rgba(100,0,255,0.3)); }
+  50%  { filter: drop-shadow(0 0 35px rgba(0,212,255,0.7)) drop-shadow(0 0 60px rgba(100,0,255,0.5)); }
+}
+
+/* Border glow for active card */
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 15px rgba(0,212,255,0.1); }
+  50%  { border-color: rgba(0,212,255,0.7); box-shadow: 0 0 25px rgba(0,212,255,0.25), inset 0 1px 0 rgba(0,212,255,0.15); }
+}
+
+/* Typing cursor blink */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+

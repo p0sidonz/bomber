@@ -9,11 +9,17 @@ const DPAD_BTN = 38
 
 const CONTROL_TYPE_KEY = 'bm_control_type'
 const CONTROL_OPACITY_KEY = 'bm_control_opacity'
+const BOMB_SIZE_KEY = 'bm_bomb_size'
+const BOMB_X_KEY = 'bm_bomb_x'
+const BOMB_Y_KEY = 'bm_bomb_y'
 
 export default function MobileControls({ hudData }) {
   const [isTouch, setIsTouch] = useState(false)
   const [controlType, setControlType] = useState(() => localStorage.getItem(CONTROL_TYPE_KEY) || 'analog')
   const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem(CONTROL_OPACITY_KEY)) || 0.55)
+  const [bombSize, setBombSize] = useState(() => parseFloat(localStorage.getItem(BOMB_SIZE_KEY)) || 68)
+  const [bombX, setBombX] = useState(() => parseFloat(localStorage.getItem(BOMB_X_KEY)) || 24)
+  const [bombY, setBombY] = useState(() => parseFloat(localStorage.getItem(BOMB_Y_KEY)) || 40)
   const [showSettings, setShowSettings] = useState(false)
 
   const joystickRef = useRef(null)
@@ -26,10 +32,6 @@ export default function MobileControls({ hudData }) {
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
       setIsTouch(true)
     }
-  }, [])
-
-  useEffect(() => {
-    return () => { releaseAll() }
   }, [])
 
   const pressKey = useCallback((key) => {
@@ -59,6 +61,51 @@ export default function MobileControls({ hudData }) {
     releaseKey('ArrowLeft')
     releaseKey('ArrowRight')
   }, [releaseKey])
+
+  // Must be AFTER releaseAll is defined (useCallback const doesn't hoist)
+  useEffect(() => {
+    // Release all keys when app loses focus / goes to background
+    // This prevents stuck movement when user lifts finger during app switch
+    const handleVisibility = () => {
+      if (document.hidden) {
+        releaseAll()
+        setJoystick(null)
+        joystickTouchIdRef.current = null
+        dpadActiveRef.current.clear()
+      }
+    }
+    const handleBlur = () => {
+      releaseAll()
+      setJoystick(null)
+      joystickTouchIdRef.current = null
+      dpadActiveRef.current.clear()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('blur', handleBlur)
+
+    // Safety net: periodically check if touches are gone but keys still pressed
+    // This catches edge cases where touchend is swallowed by the system
+    const safetyInterval = setInterval(() => {
+      // If no joystick touch is active but direction keys are still pressed, release them
+      if (joystickTouchIdRef.current === null && controlType === 'analog') {
+        const dirs = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
+        for (const d of dirs) {
+          if (activeKeysRef.current.has(d)) {
+            setVirtualKey(d, false)
+            activeKeysRef.current.delete(d)
+          }
+        }
+      }
+    }, 200)
+
+    return () => {
+      releaseAll()
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('blur', handleBlur)
+      clearInterval(safetyInterval)
+    }
+  }, [releaseAll, controlType])
 
   // ── JOYSTICK INPUT ──
   const applyJoystickInput = useCallback((dx, dy) => {
@@ -116,16 +163,36 @@ export default function MobileControls({ hudData }) {
   }, [applyJoystickInput])
 
   const onJoystickTouchEnd = useCallback((e) => {
-    e.preventDefault()
-    for (const touch of e.changedTouches) {
-      if (touch.identifier === joystickTouchIdRef.current) {
-        joystickTouchIdRef.current = null
-        setJoystick(null)
-        releaseDirections()
-        break
+    // We check both changedTouches (standard) and touches (fallback)
+    let match = false
+    if (e.changedTouches) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === joystickTouchIdRef.current) match = true
       }
     }
+    // If our touch is no longer in active touches, it must have ended
+    let stillActive = false
+    if (e.touches) {
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === joystickTouchIdRef.current) stillActive = true
+      }
+    }
+    
+    if (match || !stillActive) {
+      joystickTouchIdRef.current = null
+      setJoystick(null)
+      releaseDirections()
+    }
   }, [releaseDirections])
+
+  useEffect(() => {
+    window.addEventListener('touchend', onJoystickTouchEnd)
+    window.addEventListener('touchcancel', onJoystickTouchEnd)
+    return () => {
+      window.removeEventListener('touchend', onJoystickTouchEnd)
+      window.removeEventListener('touchcancel', onJoystickTouchEnd)
+    }
+  }, [onJoystickTouchEnd])
 
   // ── D-PAD INPUT ──
   const onDpadDown = useCallback((dir) => (e) => {
@@ -151,6 +218,17 @@ export default function MobileControls({ hudData }) {
     releaseKey('Space')
   }, [releaseKey])
 
+  // ── DETONATE BUTTON ──
+  const onDetonateStart = useCallback((e) => {
+    e.preventDefault()
+    pressKey('KeyE')
+  }, [pressKey])
+
+  const onDetonateEnd = useCallback((e) => {
+    e.preventDefault()
+    releaseKey('KeyE')
+  }, [releaseKey])
+
   // ── SETTINGS ──
   const cycleControlType = useCallback(() => {
     setControlType(prev => {
@@ -164,6 +242,21 @@ export default function MobileControls({ hudData }) {
   const changeOpacity = useCallback((val) => {
     setOpacity(val)
     localStorage.setItem(CONTROL_OPACITY_KEY, val)
+  }, [])
+
+  const changeBombSize = useCallback((val) => {
+    setBombSize(val)
+    localStorage.setItem(BOMB_SIZE_KEY, val)
+  }, [])
+
+  const changeBombX = useCallback((val) => {
+    setBombX(val)
+    localStorage.setItem(BOMB_X_KEY, val)
+  }, [])
+
+  const changeBombY = useCallback((val) => {
+    setBombY(val)
+    localStorage.setItem(BOMB_Y_KEY, val)
   }, [])
 
   if (!isTouch) return null
@@ -293,8 +386,8 @@ export default function MobileControls({ hudData }) {
         onTouchCancel={onBombEnd}
         style={{
           position: 'absolute',
-          right: 24, bottom: 40,
-          width: 68, height: 68,
+          right: bombX, bottom: bombY,
+          width: bombSize, height: bombSize,
           borderRadius: '50%',
           background: `radial-gradient(circle at 40% 35%, rgba(255,140,40,${0.7 * baseOpacity}), rgba(200,50,0,${0.5 * baseOpacity}))`,
           border: `3px solid rgba(255,160,60,${0.75 * baseOpacity})`,
@@ -307,33 +400,104 @@ export default function MobileControls({ hudData }) {
           WebkitTapHighlightColor: 'transparent',
         }}
       >
-        <span style={{ fontSize: 28, pointerEvents: 'none' }}>💣</span>
+        <span style={{ fontSize: bombSize * 0.4, pointerEvents: 'none' }}>💣</span>
       </div>
 
-      {/* ── MOBILE STATS (compact, positioned above bomb button) ── */}
+      {/* ── RIGHT: Detonate Button (Only if Remote Powerup) ── */}
+      {hudData?.hasRemote && (
+        <div
+          onTouchStart={onDetonateStart}
+          onTouchEnd={onDetonateEnd}
+          onTouchCancel={onDetonateEnd}
+          style={{
+            position: 'absolute',
+            right: bombX + bombSize + 20, bottom: bombY + 10,
+            width: bombSize * 0.8, height: bombSize * 0.8,
+            borderRadius: '50%',
+            background: `radial-gradient(circle at 40% 35%, rgba(255,80,80,${0.7 * baseOpacity}), rgba(200,0,0,${0.5 * baseOpacity}))`,
+            border: `3px solid rgba(255,100,100,${0.75 * baseOpacity})`,
+            boxShadow: `0 0 20px rgba(255,50,50,${0.3 * baseOpacity}), inset 0 -3px 8px rgba(0,0,0,0.3)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ fontSize: bombSize * 0.35, pointerEvents: 'none' }}>💥</span>
+        </div>
+      )}
+
+      {/* ── MOBILE STATS (compact, premium badges positioned above bomb button) ── */}
       {hudData && (
         <div style={{
           position: 'absolute',
-          right: 10, bottom: 118,
+          right: 12, bottom: 124,
           display: 'flex',
           flexDirection: 'column',
-          gap: 3,
-          fontFamily: '"Rajdhani", "Outfit", sans-serif',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
+          gap: 6,
           pointerEvents: 'none',
-          opacity: baseOpacity * 0.85,
+          opacity: baseOpacity * 0.95,
           alignItems: 'flex-end',
         }}>
-          <span style={{ color: '#f0c040' }}>💣{hudData.maxBombs || 1}</span>
-          <span style={{ color: '#ff7040' }}>🔥{hudData.fireRange || 1}</span>
-          <span style={{ color: '#00e87a' }}>⚡{hudData.speed || 1}</span>
+          {/* Bomb */}
+          <div style={{
+            background: 'rgba(255,204,0,0.12)', border: '1px solid rgba(255,204,0,0.3)',
+            borderRadius: 6, padding: '2px 6px',
+            display: 'flex', alignItems: 'center', gap: 4,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ fontSize: 10 }}>💣</span>
+            <span style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 12, fontWeight: 800, color: '#ffcc00' }}>{hudData.maxBombs || 1}</span>
+          </div>
+
+          {/* Fire */}
+          <div style={{
+            background: 'rgba(255,112,64,0.12)', border: '1px solid rgba(255,112,64,0.3)',
+            borderRadius: 6, padding: '2px 6px',
+            display: 'flex', alignItems: 'center', gap: 4,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ fontSize: 10 }}>🔥</span>
+            <span style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 12, fontWeight: 800, color: '#ff7040' }}>{hudData.fireRange || 1}</span>
+          </div>
+
+          {/* Speed */}
+          <div style={{
+            background: 'rgba(0,232,122,0.12)', border: '1px solid rgba(0,232,122,0.3)',
+            borderRadius: 6, padding: '2px 6px',
+            display: 'flex', alignItems: 'center', gap: 4,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ fontSize: 10 }}>⚡</span>
+            <span style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 12, fontWeight: 800, color: '#00e87a' }}>{hudData.speed || 1}</span>
+          </div>
+
+          {/* Skull Effect */}
           {hudData.skullEffect && (
-            <span style={{ color: '#ff2020', animation: 'pulseGlow 0.6s infinite' }}>☠</span>
+            <div style={{
+              background: 'rgba(255,32,32,0.15)', border: '1px solid rgba(255,32,32,0.4)',
+              borderRadius: 6, padding: '2px 6px',
+              display: 'flex', alignItems: 'center', gap: 4,
+              animation: 'pulseGlow 0.6s ease-in-out infinite',
+            }}>
+              <span style={{ fontSize: 10 }}>☠</span>
+              <span style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 10, fontWeight: 800, color: '#ff2020', letterSpacing: '0.05em' }}>{hudData.skullEffect.substring(0, 3).toUpperCase()}</span>
+            </div>
           )}
+
+          {/* Gate Open */}
           {hudData.gateOpen && (
-            <span style={{ color: '#f0c040' }}>★</span>
+            <div style={{
+              background: 'rgba(255,204,0,0.15)', border: '1px solid rgba(255,204,0,0.4)',
+              borderRadius: 6, padding: '2px 6px',
+              display: 'flex', alignItems: 'center', gap: 4,
+              animation: 'pulseGlow 1s ease-in-out infinite',
+            }}>
+              <span style={{ fontSize: 10 }}>★</span>
+              <span style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 10, fontWeight: 800, color: '#ffcc00', letterSpacing: '0.05em' }}>EXIT</span>
+            </div>
           )}
         </div>
       )}
@@ -418,6 +582,51 @@ export default function MobileControls({ hudData }) {
               }}
             />
           </div>
+          {/* Bomb Size */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', fontSize: '9px' }}>BOMB SIZE</span>
+            <input
+              type="range"
+              min="40" max="120" step="2"
+              value={bombSize}
+              onChange={(e) => changeBombSize(parseFloat(e.target.value))}
+              style={{
+                width: 80, height: 4,
+                accentColor: '#00d4ff',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
+          {/* Bomb X */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', fontSize: '9px' }}>BOMB POS X</span>
+            <input
+              type="range"
+              min="10" max="200" step="2"
+              value={bombX}
+              onChange={(e) => changeBombX(parseFloat(e.target.value))}
+              style={{
+                width: 80, height: 4,
+                accentColor: '#00d4ff',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
+          {/* Bomb Y */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', fontSize: '9px' }}>BOMB POS Y</span>
+            <input
+              type="range"
+              min="10" max="200" step="2"
+              value={bombY}
+              onChange={(e) => changeBombY(parseFloat(e.target.value))}
+              style={{
+                width: 80, height: 4,
+                accentColor: '#00d4ff',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
           {/* Close */}
           <div
             onClick={() => setShowSettings(false)}
@@ -428,6 +637,7 @@ export default function MobileControls({ hudData }) {
               letterSpacing: '0.15em',
               cursor: 'pointer',
               padding: '2px 0',
+              marginTop: 4,
             }}
           >
             TAP TO CLOSE

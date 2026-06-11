@@ -1,7 +1,7 @@
 {
   "name": "bomberman",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "@capacitor/cli": "^7.6.5",
     "@capacitor/core": "^8.3.4",
     "@capacitor/screen-orientation": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@capgo/capacitor-social-login": "^8.3.22",
     "@capgo/native-purchases": "^8.4.0",

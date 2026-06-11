@@ -19,7 +19,8 @@ import { initPurchases } from './purchases'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
-import { toggleMute, getIsMuted } from './game/audio/audio'
+import { StatusBar } from '@capacitor/status-bar'
+import { toggleMute, getIsMuted, suspendAudio, resumeAudio } from './game/audio/audio'
 
 // SCREENS: auth | landing | level_select | classic | create | join | lobby | countdown | game | results | leaderboard | reset_password | privacy | tos | contact | delete_account
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
   const [room, setRoom] = useState(null)
   const [gameResult, setGameResult] = useState(null)
   const [level, setLevel] = useState(1)
+  const [loadout, setLoadout] = useState(null)
   const [campaign, setCampaign] = useState({})
   const [muted, setMuted] = useState(getIsMuted())
 
@@ -43,6 +45,17 @@ export default function App() {
     initPurchases().then(() => initializeAdMob())
     if (Capacitor.isNativePlatform()) {
       ScreenOrientation.lock({ orientation: 'portrait-primary' }).catch(e => console.error(e))
+      StatusBar.hide().catch(e => console.error('Failed to hide status bar', e))
+      
+      const stateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          suspendAudio()
+        } else {
+          resumeAudio()
+          // Re-hide status bar — Android/iOS can show it again after app resume
+          StatusBar.hide().catch(() => {})
+        }
+      })
       
       const backListener = CapacitorApp.addListener('backButton', () => {
         setScreen(curr => {
@@ -65,6 +78,7 @@ export default function App() {
       })
 
       return () => {
+        stateListener.then(l => l.remove())
         backListener.then(l => l.remove())
       }
     }
@@ -115,6 +129,9 @@ export default function App() {
     if (extra.room) setRoom(extra.room)
     if (extra.result) setGameResult(extra.result)
     if (extra.level) setLevel(extra.level)
+    if (extra.loadout !== undefined) setLoadout(extra.loadout)
+    else setLoadout(null) // clear loadout if not explicitly passed
+    
     // Clear any URL hash (e.g. #privacy, #tos) so it doesn't re-trigger
     // a legal screen on the next Supabase auth event refresh
     if (window.location.hash) {
@@ -126,9 +143,9 @@ export default function App() {
   const renderScreen = () => {
     if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
     if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
-    if (screen === 'landing') return <LandingScreen user={user} nav={nav} />
-    if (screen === 'level_select') return <LevelSelectScreen user={user} campaign={campaign} nav={nav} />
-    if (screen === 'classic') return <ClassicGameScreen user={user} campaign={campaign} setCampaign={setCampaign} startingLevel={level} nav={nav} />
+    if (screen === 'landing') return <LandingScreen user={user} campaign={campaign} setCampaign={setCampaign} nav={nav} />
+    if (screen === 'level_select') return <LevelSelectScreen user={user} campaign={campaign} setCampaign={setCampaign} nav={nav} />
+    if (screen === 'classic') return <ClassicGameScreen user={user} campaign={campaign} setCampaign={setCampaign} startingLevel={level} loadout={loadout} nav={nav} />
     if (screen === 'lobby') return <LobbyScreen user={user} room={room} nav={nav} />
     if (screen === 'countdown') return <CountdownScreen room={room} nav={nav} />
     if (screen === 'game') return <GameScreen user={user} room={room} nav={nav} />

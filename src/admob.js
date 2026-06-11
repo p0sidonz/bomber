@@ -1,4 +1,4 @@
-import { AdMob } from '@capacitor-community/admob'
+import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { isAdFree } from './purchases.js'
@@ -8,6 +8,10 @@ import { isAdFree } from './purchases.js'
 const INTERSTITIAL_ID = Capacitor.getPlatform() === 'ios'
   ? 'ca-app-pub-3940256099942544/4411468910'   // iOS test
   : 'ca-app-pub-3940256099942544/1033173712'   // Android test
+
+const REWARDED_ID = Capacitor.getPlatform() === 'ios'
+  ? 'ca-app-pub-3940256099942544/1712485313'   // iOS test
+  : 'ca-app-pub-3940256099942544/5224354917'   // Android test
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let isInitialized   = false
@@ -111,6 +115,47 @@ export async function showInterstitialAd(reason = 'unknown') {
     // Always pre-load the next ad immediately after showing one
     _preloadAd()
   }
+}
+
+// ─── REWARDED ADS ─────────────────────────────────────────────────────────────
+
+export async function showRewardedAd() {
+  if (!Capacitor.isNativePlatform() || !isInitialized) {
+    console.log('[AdMob] Mocking rewarded ad success (web or uninitialized)')
+    return true // Mock success for web
+  }
+
+  return new Promise(async (resolve) => {
+    let rewarded = false
+    
+    // Listen for the reward event
+    const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+      console.log('[AdMob] User earned reward!')
+      rewarded = true
+    })
+
+    const closeListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+      console.log('[AdMob] Rewarded ad dismissed')
+      rewardListener.remove()
+      closeListener.remove()
+      resolve(rewarded)
+    })
+
+    try {
+      console.log('[AdMob] Preparing rewarded ad...')
+      await AdMob.prepareRewardVideoAd({
+        adId: REWARDED_ID,
+        isTesting: true,
+      })
+      console.log('[AdMob] Showing rewarded ad...')
+      await AdMob.showRewardVideoAd()
+    } catch (e) {
+      console.error('[AdMob] Failed to show rewarded ad', e)
+      rewardListener.remove()
+      closeListener.remove()
+      resolve(false)
+    }
+  })
 }
 
 // ─── CONVENIENCE WRAPPERS ─────────────────────────────────────────────────────

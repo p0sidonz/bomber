@@ -46,6 +46,8 @@ export function createInitialState(grid, playerConfigs, mode = 'singleplayer') {
       slot: p.slot || 1,
       x: p.startX,
       y: p.startY,
+      startX: p.startX,
+      startY: p.startY,
       px: p.startX * 48,
       py: p.startY * 48,
       alive: true,

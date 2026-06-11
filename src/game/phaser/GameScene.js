@@ -94,6 +94,13 @@ export default class GameScene extends Phaser.Scene {
     this.camTarget.setDepth(-1)
 
     this.setupCamera()
+
+    const theme = this.stateRef?.current?.theme || 'classic'
+    if (theme === 'arena') {
+      this.cameras.main.setBackgroundColor(0x220505)
+    } else {
+      this.cameras.main.setBackgroundColor(0x07071a)
+    }
   }
 
   _genPortalTexture() {
@@ -120,82 +127,117 @@ export default class GameScene extends Phaser.Scene {
     })
   }
 
-  // ─── TEXTURE GENERATION (NOVA STRIKE — Sci-Fi Cyberpunk Arena) ─────────────
+  // ─── TEXTURE GENERATION ─────────────
   genTextures() {
-    // ── FLOOR ── Deep space energy grid
+    const theme = this.stateRef?.current?.theme || 'classic'
+
+    // ── FLOOR ──
     this._tex('floor_a', (g) => {
-      // Base — deep void
-      g.fillStyle(0x07071a); g.fillRect(0, 0, TS, TS)
-      // Hexagonal grid pattern (alternating cells)
-      g.fillStyle(0x0d0d28); g.fillRect(0, 0, TS, TS)
-      // Grid crosshairs
-      g.fillStyle(0x1a2060, 0.7)
-      g.fillRect(0, H-1, TS, 1)
-      g.fillRect(H-1, 0, 1, TS)
-      // Energy node at center intersection
-      g.fillStyle(0x2030aa, 0.4); g.fillCircle(H, H, 3)
-      g.fillStyle(0x4060ff, 0.2); g.fillCircle(H, H, 6)
-      // Corner accent dots
-      g.fillStyle(0x2040cc, 0.35)
-      g.fillRect(0, 0, 2, 2); g.fillRect(TS-2, 0, 2, 2)
-      g.fillRect(0, TS-2, 2, 2); g.fillRect(TS-2, TS-2, 2, 2)
+      if (theme === 'arena') {
+        // Lava / Gladiator Arena Floor
+        g.fillStyle(0x220505); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x330a0a); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x551100, 0.7)
+        g.fillRect(0, H-1, TS, 1); g.fillRect(H-1, 0, 1, TS)
+        g.fillStyle(0xff4400, 0.4); g.fillCircle(H, H, 3)
+        g.fillStyle(0xff2200, 0.2); g.fillCircle(H, H, 6)
+        g.fillStyle(0xff6600, 0.35)
+        g.fillRect(0, 0, 2, 2); g.fillRect(TS-2, 0, 2, 2)
+        g.fillRect(0, TS-2, 2, 2); g.fillRect(TS-2, TS-2, 2, 2)
+      } else {
+        // Base — deep void (Cyberpunk)
+        g.fillStyle(0x07071a); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x0d0d28); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x1a2060, 0.7)
+        g.fillRect(0, H-1, TS, 1); g.fillRect(H-1, 0, 1, TS)
+        g.fillStyle(0x2030aa, 0.4); g.fillCircle(H, H, 3)
+        g.fillStyle(0x4060ff, 0.2); g.fillCircle(H, H, 6)
+        g.fillStyle(0x2040cc, 0.35)
+        g.fillRect(0, 0, 2, 2); g.fillRect(TS-2, 0, 2, 2)
+        g.fillRect(0, TS-2, 2, 2); g.fillRect(TS-2, TS-2, 2, 2)
+      }
     })
 
-    // ── SOLID WALL ── Crystalline energy barrier
+    // ── SOLID WALL ──
     this._tex('wall_solid', (g) => {
-      // Dark base
-      g.fillStyle(0x060616); g.fillRect(0, 0, TS, TS)
-      // Crystal body — teal/cyan
-      g.fillStyle(0x0d2a3a); g.fillRect(2, 2, TS-4, TS-4)
-      // Crystal faces (lighter planes)
-      g.fillStyle(0x1a4858); g.fillRect(4, 4, TS-8, TS-8)
-      // Top crystal face (bright)
-      g.fillStyle(0x2a7090); g.fillRect(5, 5, TS-10, 10)
-      // Diagonal crystal edge
-      g.fillStyle(0x3090b0); g.fillRect(5, 5, 8, TS-10)
-      // Glow core
-      g.fillStyle(0x00d4ff, 0.08); g.fillRect(8, 8, TS-16, TS-16)
-      g.fillStyle(0x00d4ff, 0.15); g.fillRect(10, 10, TS-20, TS-20)
-      // Neon outline
-      g.lineStyle(1, 0x00aaff, 0.5)
-      g.strokeRect(2, 2, TS-4, TS-4)
-      // Corner energy sparks
-      g.fillStyle(0x00ffff, 0.5)
-      g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
-      g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
-      g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
-      g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
-      // Top neon edge
-      g.fillStyle(0x00d4ff, 0.3); g.fillRect(2, 2, TS-4, 1)
-      g.fillStyle(0x00d4ff, 0.15); g.fillRect(2, TS-3, TS-4, 1)
+      if (theme === 'arena') {
+        // Volcanic Solid Rock
+        g.fillStyle(0x1a0505); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x3a0d0d); g.fillRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0x581a1a); g.fillRect(4, 4, TS-8, TS-8)
+        g.fillStyle(0x902a2a); g.fillRect(5, 5, TS-10, 10)
+        g.fillStyle(0xb03030); g.fillRect(5, 5, 8, TS-10)
+        g.fillStyle(0xff5500, 0.15); g.fillRect(8, 8, TS-16, TS-16)
+        g.fillStyle(0xff8800, 0.25); g.fillRect(10, 10, TS-20, TS-20)
+        g.lineStyle(1, 0xff5500, 0.5); g.strokeRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0xffaa00, 0.5)
+        g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+        g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+        g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+        g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+        g.fillStyle(0xff5500, 0.4); g.fillRect(2, 2, TS-4, 1)
+        g.fillStyle(0xff5500, 0.2); g.fillRect(2, TS-3, TS-4, 1)
+      } else {
+        // Crystalline energy barrier
+        g.fillStyle(0x060616); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x0d2a3a); g.fillRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0x1a4858); g.fillRect(4, 4, TS-8, TS-8)
+        g.fillStyle(0x2a7090); g.fillRect(5, 5, TS-10, 10)
+        g.fillStyle(0x3090b0); g.fillRect(5, 5, 8, TS-10)
+        g.fillStyle(0x00d4ff, 0.08); g.fillRect(8, 8, TS-16, TS-16)
+        g.fillStyle(0x00d4ff, 0.15); g.fillRect(10, 10, TS-20, TS-20)
+        g.lineStyle(1, 0x00aaff, 0.5); g.strokeRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0x00ffff, 0.5)
+        g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+        g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+        g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+        g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+        g.fillStyle(0x00d4ff, 0.3); g.fillRect(2, 2, TS-4, 1)
+        g.fillStyle(0x00d4ff, 0.15); g.fillRect(2, TS-3, TS-4, 1)
+      }
     })
 
-    // ── SOFT WALL ── Destructible alien bio-crystal
+    // ── SOFT WALL ──
     this._tex('wall_soft', (g) => {
-      // Dark base
-      g.fillStyle(0x100618); g.fillRect(0, 0, TS, TS)
-      // Bio-organic body
-      g.fillStyle(0x25103a); g.fillRect(2, 2, TS-4, TS-4)
-      // Inner panels
-      g.fillStyle(0x38185a); g.fillRect(4, 4, TS-8, TS-8)
-      // Top lighter face
-      g.fillStyle(0x50228a); g.fillRect(5, 5, TS-10, 9)
-      // Side crystal
-      g.fillStyle(0x3d1870); g.fillRect(5, 14, 8, TS-18)
-      // Glowing core (magenta/violet)
-      g.fillStyle(0xcc44ff, 0.12); g.fillRect(9, 9, TS-18, TS-18)
-      g.fillStyle(0xaa22dd, 0.2); g.fillRect(12, 12, TS-24, TS-24)
-      // Neon magenta border
-      g.lineStyle(1, 0xcc00ff, 0.5)
-      g.strokeRect(2, 2, TS-4, TS-4)
-      // Corner energy sparks
-      g.fillStyle(0xff44ff, 0.6)
-      g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
-      g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
-      g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
-      g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
-      // Top edge glow
-      g.fillStyle(0xcc00ff, 0.35); g.fillRect(2, 2, TS-4, 1)
+      if (theme === 'arena') {
+        // Cracked Ash Block (Destructible)
+        g.fillStyle(0x2a1a1a); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x4a3a3a); g.fillRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0x6a5a5a); g.fillRect(4, 4, TS-8, TS-8)
+        g.fillStyle(0x504040); g.fillRect(5, 5, TS-10, 9)
+        g.fillStyle(0x3a2a2a); g.fillRect(5, 14, 8, TS-18)
+        
+        // Draw glowing lava cracks to clearly distinguish from solid wall
+        g.fillStyle(0xffaa00, 0.7); g.fillRect(10, 8, 2, 12)
+        g.fillStyle(0xffaa00, 0.7); g.fillRect(8, 14, 10, 2)
+        g.fillStyle(0xffaa00, 0.6); g.fillRect(18, 10, 2, 8)
+        g.fillStyle(0xff4400, 0.5); g.fillRect(9, 7, 4, 14)
+        g.fillStyle(0xff4400, 0.5); g.fillRect(7, 13, 12, 4)
+        
+        // Brittle borders
+        g.lineStyle(1, 0x8a7a7a, 0.6); g.strokeRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0xffaa00, 0.4)
+        g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+        g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+        g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+        g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+      } else {
+        // Destructible alien bio-crystal
+        g.fillStyle(0x100618); g.fillRect(0, 0, TS, TS)
+        g.fillStyle(0x25103a); g.fillRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0x38185a); g.fillRect(4, 4, TS-8, TS-8)
+        g.fillStyle(0x50228a); g.fillRect(5, 5, TS-10, 9)
+        g.fillStyle(0x3d1870); g.fillRect(5, 14, 8, TS-18)
+        g.fillStyle(0xcc44ff, 0.12); g.fillRect(9, 9, TS-18, TS-18)
+        g.fillStyle(0xaa22dd, 0.2); g.fillRect(12, 12, TS-24, TS-24)
+        g.lineStyle(1, 0xcc00ff, 0.5); g.strokeRect(2, 2, TS-4, TS-4)
+        g.fillStyle(0xff44ff, 0.6)
+        g.fillRect(2, 2, 4, 2); g.fillRect(2, 2, 2, 4)
+        g.fillRect(TS-6, 2, 4, 2); g.fillRect(TS-4, 2, 2, 4)
+        g.fillRect(2, TS-4, 4, 2); g.fillRect(2, TS-6, 2, 4)
+        g.fillRect(TS-6, TS-4, 4, 2); g.fillRect(TS-4, TS-6, 2, 4)
+        g.fillStyle(0xcc00ff, 0.35); g.fillRect(2, 2, TS-4, 1)
+      }
     })
 
     // ── EXIT GATE ── Warp portal
@@ -264,18 +306,29 @@ export default class GameScene extends Phaser.Scene {
     const mapH = rows * TS
 
     const cam = this.cameras.main
-    cam.setBounds(0, 0, mapW, mapH)
+    // Remove strict bounds so the camera can center smaller maps on wide screens
+    // cam.setBounds(0, 0, mapW, mapH)
 
     if (this.mode === 'singleplayer' || this.mode === 'multiplayer') {
       const zoom = cam.height / mapH
       cam.setZoom(zoom)
+      
+      const scaledMapW = mapW * zoom
+      if (scaledMapW <= cam.width) {
+        // Map fits horizontally, no need to pan. Center it statically.
+        cam.stopFollow()
+        cam.centerOn(mapW / 2, mapH / 2)
+      } else {
+        // Map is wider than screen. Enable panning and bounds.
+        cam.setBounds(0, 0, mapW, mapH)
+        cam.startFollow(this.camTarget, true, 0.1, 0.1)
+      }
     } else {
       const zoomX = cam.width / mapW
       const zoomY = cam.height / mapH
       cam.setZoom(Math.min(zoomX, zoomY) * 0.92)
+      cam.startFollow(this.camTarget, true, 0.1, 0.1)
     }
-
-    cam.startFollow(this.camTarget, true, 0.1, 0.1)
   }
 
   // ─── MAIN UPDATE LOOP (60fps) ──────────────────────────────────────────
@@ -1381,14 +1434,24 @@ export default class GameScene extends Phaser.Scene {
     // Follow player if alive OR if waiting to respawn (so camera stays at spawn zone)
     const isTracking = myPlayer && (myPlayer.alive || (myPlayer.respawnTimer || 0) > 0)
     if (isTracking) {
-      this.camTarget.x = myPlayer.px + H
-      this.camTarget.y = myPlayer.py + H
-
       if (this.mode === 'multiplayer' && state.zoneWidth) {
+        // Zone-based map (Gate Rush), follow player exactly within bounds
+        this.camTarget.x = myPlayer.px + H
+        this.camTarget.y = myPlayer.py + H
+        
         const zoneStartX = myPlayer.zone * (state.zoneWidth + state.dividerWidth) * TS
         const totalHeight = state.grid.length * TS
         const totalWidth = state.zoneWidth * TS
         this.cameras.main.setBounds(zoneStartX, 0, totalWidth, totalHeight)
+      } else {
+        // Classic/Arena map. Only update cam target if the map is wider than the screen
+        const mapW = state.grid[0].length * TS
+        const mapH = state.grid.length * TS
+        const zoom = this.cameras.main.height / mapH
+        if (mapW * zoom > this.cameras.main.width) {
+          this.camTarget.x = myPlayer.px + H
+          this.camTarget.y = myPlayer.py + H
+        }
       }
     }
   }

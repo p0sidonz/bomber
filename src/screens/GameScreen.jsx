@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { generateMultiplayerZones } from '../game/levels/generator.js'
+import { generateMultiplayerZones, generateMultiplayerMap } from '../game/levels/generator.js'
 import { createInitialState, TILE } from '../game/engine/state.js'
 import { movePlayer, updateSlidingBombs, findSafeTileNear } from '../game/engine/physics.js'
 import { plantBomb, updateBombs, updateExplosions, checkPowerupPickups } from '../game/engine/bombs.js'
@@ -37,33 +37,56 @@ export default function GameScreen({ user, room, nav }) {
     return () => window.removeEventListener('hw_back_pressed', onBack)
   }, [overlay])
   const bombPressedRef = useRef(false)
+  const detonatePressedRef = useRef(false)
   const clientBombStateRef = useRef({})
+  const clientDetonateStateRef = useRef({})
   const myUserId = user?.id
 
   async function initGame() {
     const players = await getRoomPlayers(room.id)
+    const mapId = room.map_id || 1
+    const matchTypeStr = room.match_type || 'last_standing'
+    
+    let mapData
+    let timerTicks = 99999
+    let matchType = 'last_standing'
+    let theme = 'classic'
 
-    // Generate zone-based map: each player gets their own solo-style zone
-    const zoneData = generateMultiplayerZones(players.length)
+    if (mapId === 1) {
+      // Classic Gate Rush (Zone-based)
+      mapData = generateMultiplayerZones(players.length)
+      matchType = 'gate_rush'
+    } else {
+      // Battle Arena & other common maps (15x13)
+      const config = {}
+      if (mapId === 6) {
+        theme = 'arena'
+        const parts = matchTypeStr.split('|')
+        config.enemyCount = parseInt(parts[1] || '10', 10)
+        timerTicks = parseInt(parts[2] || '180', 10) * 20 // Convert seconds to ticks
+      }
+      mapData = generateMultiplayerMap(mapId, players.length, config)
+    }
 
     const playerConfigs = players.map((p, i) => ({
       userId: p.user_id,
       name: p.display_name,
       color: p.color,
       slot: p.slot,
-      startX: zoneData.spawnPoints[i]?.x || 1,
-      startY: zoneData.spawnPoints[i]?.y || 1,
+      startX: mapData.spawnPoints[i]?.x || 1,
+      startY: mapData.spawnPoints[i]?.y || 1,
     }))
 
-    const state = createInitialState(zoneData.grid, playerConfigs, 'multiplayer')
-    state.enemies = zoneData.enemies
-    state.portals = zoneData.portals          // portal info per zone
-    state.hiddenGateTiles = zoneData.hiddenGateTiles  // one exit gate per zone
+    const state = createInitialState(mapData.grid, playerConfigs, 'multiplayer')
+    state.enemies = mapData.enemies || []
+    state.portals = mapData.portals || []          // portal info per zone
+    state.hiddenGateTiles = mapData.hiddenGateTiles || []  // one exit gate per zone
     state.gateVisible = false
-    state.matchType = 'gate_rush'
-    state.timer = 99999
-    state.zoneWidth = zoneData.zoneWidth
-    state.dividerWidth = zoneData.dividerWidth
+    state.matchType = matchType
+    state.timer = timerTicks
+    state.theme = theme
+    state.zoneWidth = mapData.zoneWidth || 0
+    state.dividerWidth = mapData.dividerWidth || 0
 
     // Assign each player to their zone
     Object.values(state.players).forEach((p, i) => {
@@ -95,6 +118,17 @@ export default function GameScreen({ user, room, nav }) {
         sfx.bombPlant()
       }
       clientBombStateRef.current[userId] = bombPressed
+
+      const detonatePressed = keys.detonate
+      if (detonatePressed && !clientDetonateStateRef.current[userId]) {
+        const oldestBomb = state.bombs.find(b => b.ownerId === userId && b.remote)
+        if (oldestBomb) {
+          import('../game/engine/bombs.js').then(({ detonateBomb }) => {
+            detonateBomb(state, oldestBomb.id)
+          })
+        }
+      }
+      clientDetonateStateRef.current[userId] = detonatePressed
     }
 
     // Passability — pixel overlap check to avoid stuck-on-bomb bug
@@ -125,6 +159,17 @@ export default function GameScreen({ user, room, nav }) {
         sfx.bombPlant()
       }
       bombPressedRef.current = bombPressed
+
+      const detonatePressed = myKeys.detonate
+      if (detonatePressed && !detonatePressedRef.current) {
+        const oldestBomb = state.bombs.find(b => b.ownerId === myUserId && b.remote)
+        if (oldestBomb) {
+          import('../game/engine/bombs.js').then(({ detonateBomb }) => {
+            detonateBomb(state, oldestBomb.id)
+          })
+        }
+      }
+      detonatePressedRef.current = detonatePressed
     }
 
     // Update systems
@@ -152,7 +197,7 @@ export default function GameScreen({ user, room, nav }) {
           player.shieldTimer = 60
           
           // Re-spawn at their original zone spawn, ensure it's a walkable tile
-          const spawn = state.spawnPoints?.[player.slot - 1] || { x: 1, y: 1 }
+          const spawn = { x: player.startX || 1, y: player.startY || 1 }
           const safeSpawn = findSafeTileNear(state.grid, spawn.x, spawn.y, state.bombs)
           player.x = safeSpawn.x; player.y = safeSpawn.y
           player.px = safeSpawn.x * 48; player.py = safeSpawn.y * 48
@@ -177,6 +222,7 @@ export default function GameScreen({ user, room, nav }) {
     setHudData({
       timerStr: `${m}:${s}`,
       timerTicks: ticks,
+      hasRemote: state.players?.[myUserId]?.powerups?.includes('remote') || false,
       players: Object.values(state.players || {}).map(p => ({
         userId: p.userId,
         name: p.name,
@@ -234,6 +280,22 @@ export default function GameScreen({ user, room, nav }) {
     if (state.status === 'finished') return
     // Grace period: don't check win in the first 3 seconds
     if (state.tick < 60) return
+
+    // Match Timer End
+    if (state.timer <= 0) {
+      state.status = 'finished'
+      const sorted = Object.values(state.players).sort((a, b) => (b.kills || 0) - (a.kills || 0))
+      if (sorted.length > 1 && sorted[0].kills === sorted[1].kills) {
+        state.winner = null // Draw
+      } else {
+        state.winner = sorted[0].userId
+      }
+      setGameOver(true)
+      stopBGM()
+      setTimeout(() => nav('results', { result: buildResult(state) }), 2000)
+      return
+    }
+
     const alive = Object.values(state.players).filter(p => p.alive)
 
     // Per-zone gate reveal: when all enemies in a zone are dead, reveal that zone's gate
@@ -290,7 +352,9 @@ export default function GameScreen({ user, room, nav }) {
 
   useEffect(() => {
     initInput()
+    let isCancelled = false
     initGame().then(() => {
+      if (isCancelled) return
       if (isHost) {
         tickIntervalRef.current = setInterval(hostTick, TICK_RATE)
       }
@@ -337,12 +401,24 @@ export default function GameScreen({ user, room, nav }) {
               sfx.bombPlant()
             }
             bombPressedRef.current = bombPressed
+
+            const detonatePressed = keys.detonate
+            if (detonatePressed && !detonatePressedRef.current) {
+              const oldestBomb = state.bombs.find(b => b.ownerId === myUserId && b.remote)
+              if (oldestBomb) {
+                import('../game/engine/bombs.js').then(({ detonateBomb }) => {
+                  detonateBomb(state, oldestBomb.id)
+                })
+              }
+            }
+            detonatePressedRef.current = detonatePressed
           }
         }
       }, TICK_RATE)
     }
 
     return () => {
+      isCancelled = true
       destroyInput()
       clearInterval(tickIntervalRef.current)
       unsubscribeGame()

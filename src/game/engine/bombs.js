@@ -143,7 +143,7 @@ export function detonateBomb(state, bombId) {
         if (Math.random() < 0.18) {
           const pwTypes = [
             POWERUP.EXTRA_BOMB, POWERUP.FIRE_UP, POWERUP.SPEED_UP,
-            POWERUP.KICK, POWERUP.FULL_FIRE,
+            POWERUP.KICK
           ]
           const type = pwTypes[Math.floor(Math.random() * pwTypes.length)]
           if (state.grid[ey][ex] !== TILE.GATE) {
@@ -261,6 +261,9 @@ export function killPlayer(state, userId, killerId) {
       player.x = player.startX
       player.y = player.startY
       player.activeBombs = 0
+      player.shieldTimer = 60
+      player.skullEffect = null
+      player.skullTimer = 0
     }
   } else {
     player.alive = false

@@ -17,18 +17,37 @@ const DEBUG = false // set to false to hide debug buttons
 const PW_COLORS_CSS = {
   extrabomb: '#ffcc00', fireup: '#ff4400', speedup: '#00ff88',
   kick: '#ff8800', remote: '#8888ff', bombpass: '#aabbcc',
-  wallpass: '#88ffbb', fullfire: '#ff2200', skull: '#cc0044',
+  wallpass: '#88ffbb', skull: '#cc0044',
   clock: '#00ccff', mystery: '#ff44ff', gatebomb: '#ffaa00',
   shield: '#44aaff', decoy: '#ff88ff', blockitem: '#8899aa', swap: '#00ffcc',
 }
 
-export default function ClassicGameScreen({ user, campaign, startingLevel = 1, level: propLevel, loadout, nav }) {
+const GAME_HINTS = [
+  "Did you know you can earn free coins by watching ads? Go to Settings to earn them!",
+  "Stuck on a tough sector? You can use coins to skip it or buy powerful loadouts.",
+  "Yellow (+B) powerups give Extra Bombs, while Orange (+F) ones increase Fire Range.",
+  "Grab the Green (+S) powerup to boost your movement speed!",
+  "Found a Blue (RD) powerup? You can now remote-detonate your bombs anytime!",
+  "The Orange (KK) Kick powerup lets you push bombs away by walking into them.",
+  "Cyan (+T) Clocks will add precious extra seconds to your mission timer.",
+  "Light Blue (BP) powerups give you the ability to walk straight through bombs.",
+  "Light Green (WP) Wallpass lets you walk right through destructible walls!",
+  "Pink (?!) Mystery powerups give you a random effect... feeling lucky?",
+  "You can stack powerups! Collect multiple Fire powerups to maximize your blast radius.",
+  "In a pinch? Watch an Ad when you die to get an Extra Life and keep your progress.",
+  "Beware of Crimson (☠) Skulls! They will infect you with a random curse for 10 seconds.",
+  "You can use the 'First Drop Assurance' loadout to guarantee a specific powerup drop.",
+]
+
+export default function ClassicGameScreen({ user, campaign, setCampaign, startingLevel = 1, level: propLevel, loadout, nav }) {
   const initialLevel = propLevel || startingLevel
   const stateRef = useRef(null)
   const loadoutRef = useRef(loadout)
   const tickIntervalRef = useRef(null)
   const levelRef = useRef(initialLevel)
-  const [overlay, setOverlay] = useState(null) // null | 'paused' | 'level_clear' | 'game_over' | 'game_complete'
+  const [overlay, setOverlay] = useState('loading') // null | 'paused' | 'level_clear' | 'game_over' | 'game_complete' | 'loading'
+  const [hint, setHint] = useState('')
+  const loadingTimeoutRef = useRef(null)
   const [muted, setMuted] = useState(getIsMuted())
   const [showGuide, setShowGuide] = useState(false)
   const clearLevelTimeoutRef = useRef(null)
@@ -77,7 +96,7 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
     // Restore stats from previous level (carry forward powerups)
     const prevPlayer = stateRef.current ? Object.values(stateRef.current.players)[0] : null
     const playerInState = Object.values(s.players)[0]
-    const resetPowerups = ['remote', 'wallpass', 'bombpass']
+    const resetPowerups = ['wallpass', 'bombpass']
 
     if (prevPlayer) {
       playerInState.score = prevPlayer.score || 0
@@ -126,6 +145,24 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
 
     stateRef.current = s
 
+    // Set Loading State
+    setOverlay('loading')
+    setHint(GAME_HINTS[Math.floor(Math.random() * GAME_HINTS.length)])
+    s.status = 'paused' // Pause engine during loading screen
+    
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
+    loadingTimeoutRef.current = setTimeout(() => {
+      setOverlay(prev => {
+        if (prev === 'loading') {
+          if (stateRef.current && stateRef.current.status !== 'game_over' && stateRef.current.status !== 'level_clear') {
+            stateRef.current.status = 'active'
+          }
+          return null
+        }
+        return prev
+      })
+    }, 3500)
+
     // Play BGM
     if (level % 10 === 0) playBGM('boss')
     else if (level > 25) playBGM('world2')
@@ -163,13 +200,7 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
     // Bomb press
     const currentBomb = keys.bomb
     if (currentBomb && !bombPressedRef.current) {
-      const hasRemote = player.powerups?.includes('remote')
-      const myRemoteBombs = hasRemote ? state.bombs.filter(b => b.ownerId === player.userId && b.remote) : []
-      const atMaxBombs = player.activeBombs >= player.maxBombs
-
-      if (hasRemote && myRemoteBombs.length > 0 && atMaxBombs) {
-        remoteDetonate(state, player.userId)
-      } else {
+      if ((player.activeBombs || 0) < (player.maxBombs || 1)) {
         plantBomb(state, player.userId)
         sfx.bombPlant()
       }
@@ -324,8 +355,6 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
         levelRef.current = nextLevel
         loadoutRef.current = null // Consume before next level
         loadLevel(nextLevel)
-        setOverlay(null)
-        stateRef.current.status = 'active'
       }
     }, 2000)
   }
@@ -448,12 +477,19 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
       if (player) {
         player.lives = 1
         player.status = 'alive'
+        player.alive = true
         player.x = player.startX
         player.y = player.startY
         player.px = player.startX * 48
         player.py = player.startY * 48
+        player.activeBombs = 0
         player.direction = 'down'
-        player.invulnerableTicks = 60 // 3 seconds of invulnerability
+        player.shieldTimer = 60 // 3 seconds of invulnerability
+        player.skullEffect = null
+        player.skullTimer = 0
+        if (stateRef.current.timer <= 0) {
+          stateRef.current.timer = 1200 // +60 seconds if died from timeout
+        }
         stateRef.current.status = 'active'
         setOverlay(null)
       }
@@ -466,9 +502,6 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
     const currentLevel = levelRef.current
     loadoutRef.current = null // Consume before retry
     loadLevel(currentLevel)
-    setOverlay(null)
-    stateRef.current.status = 'active'
-    playBGM('world1')
   }
 
   function handleQuit() {
@@ -610,6 +643,37 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
       )}
 
       {/* Overlays */}
+      {overlay === 'loading' && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 500,
+          background: '#060610',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {/* Animated Text */}
+          <div className="text-bm-accent text-pixel text-4xl mb-8 animate-pulse" style={{ textShadow: '0 0 20px rgba(0, 212, 255, 0.8)' }}>
+            LOADING SECTOR...
+          </div>
+          
+          {/* Hint Box */}
+          <div style={{
+             width: '80%', maxWidth: 450,
+             background: 'linear-gradient(180deg, rgba(12,12,32,0.95) 0%, rgba(6,6,18,0.95) 100%)',
+             border: '1.5px solid rgba(0,212,255,0.3)',
+             borderRadius: 16, padding: 24, textAlign: 'center',
+             display: 'flex', flexDirection: 'column', gap: 12,
+             boxShadow: '0 20px 40px rgba(0,0,0,0.5), 0 0 30px rgba(0,212,255,0.1) inset',
+             animation: 'fadeSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards'
+          }}>
+             <div style={{ color: '#00d4ff', fontFamily: 'Rajdhani, sans-serif', fontSize: 18, fontWeight: 800, letterSpacing: '0.15em' }}>
+               💡 PILOT HINT
+             </div>
+             <div style={{ color: 'rgba(255,255,255,0.8)', fontFamily: 'Outfit, sans-serif', fontSize: 16, lineHeight: 1.5, letterSpacing: '0.05em' }}>
+               {hint}
+             </div>
+          </div>
+        </div>
+      )}
+
       {overlay === 'paused' && (
         <div className="countdown-overlay" style={{ zIndex: 300, flexDirection: 'column', overflowY: 'auto' }}>
           {/* <h2 className="text-pixel text-bm-accent text-3xl" style={{ marginBottom: 32, textShadow: '0 0 15px rgba(255,165,0,0.8)' }}>
@@ -650,7 +714,6 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
                   <div><span style={{ color: '#8888ff' }}>R</span> Remote — detonate anytime</div>
                   <div><span style={{ color: '#cccccc' }}>P</span> Bomb Pass — walk thru bombs</div>
                   <div><span style={{ color: '#aaffaa' }}>W</span> Wall Pass — walk thru bricks</div>
-                  <div><span style={{ color: '#ff2200' }}>X</span> Full Fire — max blast range</div>
                   <div><span style={{ color: '#aa0000' }}>!</span> Skull — random curse (bad!)</div>
                   <div><span style={{ color: '#00ccff' }}>T</span> Clock — +60 sec timer</div>
                   <div><span style={{ color: '#ff00ff' }}>?</span> Mystery — random powerup</div>
@@ -686,63 +749,66 @@ export default function ClassicGameScreen({ user, campaign, startingLevel = 1, l
       )}
 
       {overlay === 'game_over' && (
-        <div className="countdown-overlay flex-col gap-4 overflow-y-auto py-8 px-4" style={{ zIndex: 300, justifyContent: 'flex-start' }}>
-          <div className="flex-shrink-0 mx-auto mt-4" style={{
-            width: 48, height: 48, borderRadius: 8,
-            background: 'linear-gradient(135deg, #ff2244 0%, #880022 100%)',
-            boxShadow: '0 0 30px rgba(255,0,60,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>✕</div>
-          
-          <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 28, fontWeight: 900, color: '#ff2244', letterSpacing: '0.1em', textAlign: 'center' }}>
-            MISSION FAILED
-          </h2>
-          
-          <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 14, color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center' }}>
-            <div>SECTOR {hudData?.level || 1}</div>
-            <div>FINAL SCORE: {hudData?.score || 0}</div>
+        <div className="countdown-overlay flex flex-row gap-8 items-center justify-center py-4 px-8 w-full h-full" style={{ zIndex: 300, background: 'rgba(0,0,0,0.9)' }}>
+          {/* Left Side: Status */}
+          <div className="flex flex-col items-center justify-center flex-1 max-w-[280px]">
+            <div className="flex-shrink-0 mx-auto" style={{
+              width: 56, height: 56, borderRadius: 12,
+              background: 'linear-gradient(135deg, #ff2244 0%, #880022 100%)',
+              boxShadow: '0 0 30px rgba(255,0,60,0.7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span className="text-white text-2xl font-bold">✕</span>
+            </div>
+            
+            <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 36, fontWeight: 900, color: '#ff2244', letterSpacing: '0.1em', textAlign: 'center', marginTop: 16 }}>
+              MISSION FAILED
+            </h2>
+            
+            <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 16, color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center', marginTop: 8 }}>
+              <div>SECTOR {hudData?.level || 1}</div>
+              <div>FINAL SCORE: {hudData?.score || 0}</div>
+            </div>
           </div>
           
-          <div className="flex flex-col gap-3 w-full max-w-[300px] mx-auto mt-2">
-            <button
-              onClick={handleRestart}
-              className="btn-pixel bg-bm-blue/20 text-bm-blue border border-bm-blue hover:bg-bm-blue/40 py-3 w-full"
-            >
-              RETRY SECTOR
-            </button>
-            <button
-              onClick={() => nav('level_select')}
-              className="btn-pixel bg-bm-dark/50 text-gray-400 border border-gray-600 hover:bg-bm-dark py-3 w-full"
-            >
-              ABORT TO BASE
-            </button>
-          </div>
+          {/* Right Side: Actions */}
+          <div className="flex flex-col gap-4 flex-1 w-full max-w-[340px]">
+            {/* Primary Actions Grid */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => nav('level_select')}
+                className="btn-pixel bg-bm-dark/50 text-gray-400 border border-gray-600 hover:bg-bm-dark py-3 w-full text-[10px]"
+              >
+                ABORT
+              </button>
+            </div>
 
-          {/* ADVANCED ACTIONS */}
-          <div className="w-full max-w-[300px] mx-auto mt-2 p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-3">
-            <h3 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', color: '#fff', fontSize: 12, textAlign: 'center', letterSpacing: '0.1em' }}>
-              EMERGENCY OPTIONS
-            </h3>
-            
-            <button
-              disabled={skipping || (campaign?.coins || 0) < 10}
-              onClick={handleSkipWithCoins}
-              className="btn-pixel bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 disabled:opacity-50 py-3 w-full flex flex-col items-center justify-center gap-1"
-              style={{ lineHeight: 1 }}
-            >
-              <span>SKIP SECTOR</span>
-              <span style={{ fontSize: 10, color: 'rgba(255,200,0,0.6)' }}>(COST: 10 COINS)</span>
-            </button>
-            
-            <button
-              disabled={skipping}
-              onClick={handleReviveWithAd}
-              className="btn-pixel bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 disabled:opacity-50 py-3 w-full flex flex-col items-center justify-center gap-1"
-              style={{ lineHeight: 1 }}
-            >
-              <span>+1 LIFE & RESUME</span>
-              <span style={{ fontSize: 10, color: 'rgba(0,255,100,0.6)' }}>(WATCH AD)</span>
-            </button>
+            {/* Advanced Actions */}
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-3">
+              <h3 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', color: '#fff', fontSize: 10, textAlign: 'center', letterSpacing: '0.1em' }}>
+                EMERGENCY OPTIONS
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  disabled={skipping || (campaign?.coins || 0) < 10}
+                  onClick={handleSkipWithCoins}
+                  className="btn-pixel bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 disabled:opacity-50 py-2 w-full flex flex-col items-center justify-center gap-1"
+                  style={{ lineHeight: 1 }}
+                >
+                  <span className="text-[8px]">SKIP SECTOR</span>
+                  <span style={{ fontSize: 8, color: 'rgba(255,200,0,0.6)' }}>(COST: 10 COINS)</span>
+                </button>
+                <button
+                  disabled={skipping}
+                  onClick={handleReviveWithAd}
+                  className="btn-pixel bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 disabled:opacity-50 py-2 w-full flex flex-col items-center justify-center gap-1"
+                  style={{ lineHeight: 1 }}
+                >
+                  <span className="text-[8px]">REVIVE (AD)</span>
+                  <span style={{ fontSize: 8, color: 'rgba(0,255,100,0.6)' }}>+1 LIFE</span>
+                </button>
+              </div>
+            </div>
           </div>
           {skipping && <div className="text-center text-xs text-yellow-500 animate-pulse pb-8">Processing...</div>}
         </div>

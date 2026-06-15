@@ -111,7 +111,7 @@ export function generateLevel(level) {
     'kick',      // Lv6:  kick bombs — new mechanic
     'speedup',   // Lv7:  faster again
     'remote',    // Lv8:  remote detonate — strategic play (resets next level)
-    'fullfire',  // Lv9:  max fire range — huge reward
+    'extrabomb', // Lv9:  more bombs
     'wallpass',  // Lv10: walk through walls! (resets next level)
     'extrabomb', // Lv11: more bombs
     'fireup',    // Lv12: more range
@@ -120,7 +120,7 @@ export function generateLevel(level) {
     'bombpass',  // Lv15: walk over bombs (resets next level)
   ]
   // After level 15, cycle through useful stat boosts
-  const latePool = ['extrabomb', 'fireup', 'speedup', 'fullfire', 'remote', 'kick']
+  const latePool = ['extrabomb', 'fireup', 'speedup', 'remote', 'kick']
   const powerupType = sequence[level - 1] || latePool[(level - 1) % latePool.length]
 
   // Hide powerup under a DIFFERENT random soft block

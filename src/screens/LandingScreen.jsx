@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { signOut, createRoom, joinRoomByCode } from '../supabase'
-import { showInterstitialAd } from '../admob'
+import { showInterstitialAd, showRewardedAd } from '../admob'
 import { isAdFree, purchaseRemoveAds, restorePurchases, getRemoveAdsPrice } from '../purchases'
 import { playBGM } from '../game/audio/audio'
 import { Capacitor } from '@capacitor/core'
@@ -150,6 +150,46 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const [earningCoin, setEarningCoin] = useState(false)
+
+  const handleEarnCoin = async () => {
+    if (earningCoin) return
+    try {
+      setEarningCoin(true)
+      const now = Date.now()
+      const fifteenMins = 15 * 60 * 1000
+      let history = []
+      try {
+        history = JSON.parse(localStorage.getItem('bm_ad_timestamps') || '[]')
+      } catch(e) {}
+      
+      history = history.filter(t => now - t < fifteenMins)
+      if (history.length >= 2) {
+        alert("You have already watched 2 ads recently. Please wait a few minutes before watching again!")
+        setEarningCoin(false)
+        return
+      }
+
+      const success = await showRewardedAd()
+      if (success) {
+        const { saveCampaignProgress } = await import('../supabase.js')
+        const currentCoins = campaign?.coins || 0
+        const newCampaign = { ...campaign, coins: currentCoins + 1 }
+        setCampaign(newCampaign)
+        await saveCampaignProgress(user.id, newCampaign)
+        
+        history.push(now)
+        localStorage.setItem('bm_ad_timestamps', JSON.stringify(history))
+        
+        alert("Awesome! You earned 1 Coin. 🪙")
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setEarningCoin(false)
     }
   }
 
@@ -803,6 +843,27 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
                 )}
               </div>
             )}
+
+            {/* EARN FREE COINS */}
+            <div style={{ width: '100%', marginTop: 8 }}>
+              <button
+                onClick={handleEarnCoin}
+                disabled={earningCoin}
+                style={{
+                  width: '100%',
+                  fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 14, fontWeight: 700,
+                  letterSpacing: '0.12em', color: '#00ffaa',
+                  background: earningCoin ? 'rgba(0,255,170,0.05)' : 'rgba(0,255,170,0.1)',
+                  border: `1px solid rgba(0,255,170,${earningCoin ? '0.1' : '0.3'})`,
+                  padding: '12px', borderRadius: 10, cursor: earningCoin ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+                className={earningCoin ? '' : "hover:bg-green-500/20 hover:border-green-500/50"}
+              >
+                <span>📺</span> {earningCoin ? 'LOADING...' : 'EARN 1 COIN'}
+              </button>
+            </div>
 
             <button
               style={{

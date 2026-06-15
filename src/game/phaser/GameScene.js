@@ -31,7 +31,7 @@ const ENEMY_HEX = {
 const PW_HEX = {
   extrabomb: 0xffcc00, fireup: 0xff4400, speedup: 0x00ff88,
   kick: 0xff8800, remote: 0x8888ff, bombpass: 0xaabbcc,
-  wallpass: 0x88ffbb, fullfire: 0xff2200, skull: 0xcc0044,
+  wallpass: 0x88ffbb, skull: 0xcc0044,
   clock: 0x00ccff, mystery: 0xff44ff, gatebomb: 0xffaa00,
   shield: 0x44aaff, decoy: 0xff88ff, blockitem: 0x8899aa, swap: 0x00ffcc,
   egg: 0xffddaa,
@@ -40,7 +40,7 @@ const PW_HEX = {
 // Powerup icons (sci-fi themed labels)
 const PW_ICONS = {
   extrabomb: '+B', fireup: '+F', speedup: '+S', kick: 'KK', remote: 'RD',
-  bombpass: 'BP', wallpass: 'WP', fullfire: 'MAX', skull: '☠', clock: '+T',
+  bombpass: 'BP', wallpass: 'WP', skull: '☠', clock: '+T',
   mystery: '?!', gatebomb: 'GB', shield: '◈', decoy: 'DC', blockitem: '■', swap: '⇄',
   egg: '◉',
 }

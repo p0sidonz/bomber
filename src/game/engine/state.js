@@ -18,7 +18,6 @@ export const POWERUP = {
   REMOTE: 'remote',
   BOMB_PASS: 'bombpass',
   WALL_PASS: 'wallpass',
-  FULL_FIRE: 'fullfire',
   SKULL: 'skull',
   CLOCK: 'clock',
   MYSTERY: 'mystery',

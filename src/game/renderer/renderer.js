@@ -79,14 +79,14 @@ const ENEMY_COLORS = {
 const PW_COLORS = {
   extrabomb:'#f0c040', fireup:'#ff4400', speedup:'#40ff40',
   kick:'#ff8800', remote:'#8888ff', bombpass:'#cccccc',
-  wallpass:'#aaffaa', fullfire:'#ff2200', skull:'#aa0000',
+  wallpass:'#aaffaa', skull:'#aa0000',
   clock:'#00ccff', mystery:'#ff00ff', gatebomb:'#ffaa00',
   shield:'#4488ff', decoy:'#ff88ff', blockitem:'#888888', swap:'#00ffcc',
 }
 
 const PW_ICONS = {
   extrabomb:'B', fireup:'F', speedup:'S', kick:'K', remote:'R',
-  bombpass:'P', wallpass:'W', fullfire:'X', skull:'!', clock:'T',
+  bombpass:'P', wallpass:'W', skull:'!', clock:'T',
   mystery:'?', gatebomb:'G', shield:'[', decoy:'D', blockitem:'#', swap:'@',
 }
 

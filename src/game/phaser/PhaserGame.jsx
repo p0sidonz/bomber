@@ -127,10 +127,10 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
               {/* Timer pill */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 5,
-                background: hudData.timerTicks < 600
+                background: hudData.isLowTime
                   ? 'rgba(255,50,50,0.15)'
                   : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${hudData.timerTicks < 600 ? 'rgba(255,50,50,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                border: `1px solid ${hudData.isLowTime ? 'rgba(255,50,50,0.4)' : 'rgba(255,255,255,0.08)'}`,
                 borderRadius: 6, padding: isMobile ? '2px 6px' : '3px 10px',
                 transition: 'all 0.3s',
               }}>
@@ -140,9 +140,9 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
                 }}>⏱</span>
                 <span style={{
                   fontSize: isMobile ? 11 : 16, fontWeight: 800,
-                  color: hudData.timerTicks < 600 ? '#ff4444' : '#fff',
-                  textShadow: hudData.timerTicks < 600 ? '0 0 10px rgba(255,68,68,0.8)' : 'none',
-                  animation: hudData.timerTicks < 600 ? 'pulseGlow 0.5s ease-in-out infinite' : 'none',
+                  color: hudData.isLowTime ? '#ff4444' : '#fff',
+                  textShadow: hudData.isLowTime ? '0 0 10px rgba(255,68,68,0.8)' : 'none',
+                  animation: hudData.isLowTime ? 'pulseGlow 0.5s ease-in-out infinite' : 'none',
                   letterSpacing: '0.06em',
                 }}>{hudData.timerStr}</span>
               </div>
@@ -272,12 +272,12 @@ export default function PhaserGame({ stateRef, mode, userId, hudData }) {
 
             {/* Timer */}
             <div style={{
-              background: hudData.timerTicks < 400 ? 'rgba(255,50,50,0.12)' : 'rgba(255,204,0,0.08)',
-              border: `1px solid ${hudData.timerTicks < 400 ? 'rgba(255,50,50,0.4)' : 'rgba(255,204,0,0.25)'}`,
+              background: hudData.isLowTime ? 'rgba(255,50,50,0.12)' : 'rgba(255,204,0,0.08)',
+              border: `1px solid ${hudData.isLowTime ? 'rgba(255,50,50,0.4)' : 'rgba(255,204,0,0.25)'}`,
               borderRadius: isMobile ? 6 : 8,
               padding: isMobile ? '2px 8px' : '4px 14px',
-              color: hudData.timerTicks < 400 ? '#ff4444' : '#f0c040',
-              textShadow: hudData.timerTicks < 400 ? '0 0 10px #ff4444' : '0 0 8px rgba(240,192,64,0.5)',
+              color: hudData.isLowTime ? '#ff4444' : '#f0c040',
+              textShadow: hudData.isLowTime ? '0 0 10px #ff4444' : '0 0 8px rgba(240,192,64,0.5)',
               fontSize: isMobile ? 12 : 20, fontWeight: 800,
               letterSpacing: '0.05em',
             }}>{hudData.timerStr}</div>

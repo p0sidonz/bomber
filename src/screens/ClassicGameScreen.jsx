@@ -279,23 +279,49 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
     const secs = Math.floor(ticks / 20)
     const m = String(Math.floor(secs / 60)).padStart(2, '0')
     const s = String(secs % 60).padStart(2, '0')
-    setHudData({
-      level: state.level || 1,
-      timerStr: `${m}:${s}`,
-      timerTicks: ticks,
-      lives: player.lives,
-      score: player.score || 0,
-      enemyCount: (state.enemies || []).filter(e => e.alive).length,
-      maxBombs: player.maxBombs || 1,
-      fireRange: player.fireRange || 1,
-      speed: player.speed || 1,
-      skullEffect: player.skullEffect,
-      hasRemote: player.powerups?.includes('remote') || false,
-      gateOpen: state.gateVisible,
-      powerups: (player.powerups || []).map(pw => ({
-        name: pw.toUpperCase(),
-        color: PW_COLORS_CSS[pw] || '#ffffff',
-      })),
+    const isLowTime = ticks < 600
+    const enemyCount = (state.enemies || []).filter(e => e.alive).length
+    const powerups = Array.isArray(player.powerups) ? player.powerups.filter(pw => typeof pw === 'string') : []
+    
+    setHudData(prev => {
+      // Abort React re-render if nothing visually significant changed
+      if (prev &&
+          prev.level === state.level &&
+          prev.timerStr === `${m}:${s}` &&
+          prev.isLowTime === isLowTime &&
+          prev.lives === player.lives &&
+          prev.score === player.score &&
+          prev.enemyCount === enemyCount &&
+          prev.maxBombs === player.maxBombs &&
+          prev.fireRange === player.fireRange &&
+          prev.speed === player.speed &&
+          prev.skullEffect === player.skullEffect &&
+          prev.hasRemote === (powerups.includes('remote')) &&
+          prev.gateOpen === state.gateVisible &&
+          prev.powerupsCount === powerups.length
+      ) {
+        return prev
+      }
+      
+      return {
+        level: state.level || 1,
+        timerStr: `${m}:${s}`,
+        isLowTime,
+        lives: player.lives,
+        score: player.score || 0,
+        enemyCount,
+        maxBombs: player.maxBombs || 1,
+        fireRange: player.fireRange || 1,
+        speed: player.speed || 1,
+        skullEffect: player.skullEffect,
+        hasRemote: powerups.includes('remote'),
+        gateOpen: state.gateVisible,
+        powerupsCount: powerups.length,
+        powerups: powerups.map(pw => ({
+          name: pw.toUpperCase(),
+          color: PW_COLORS_CSS[pw] || '#ffffff',
+        })),
+      }
     })
   }
 
@@ -487,6 +513,7 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         player.shieldTimer = 60 // 3 seconds of invulnerability
         player.skullEffect = null
         player.skullTimer = 0
+        stateRef.current.explosions = [] // Fix Fire Flare persistence bug
         if (stateRef.current.timer <= 0) {
           stateRef.current.timer = 1200 // +60 seconds if died from timeout
         }

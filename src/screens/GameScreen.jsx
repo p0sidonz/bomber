@@ -219,19 +219,39 @@ export default function GameScreen({ user, room, nav }) {
     const secs = Math.floor(ticks / 20)
     const m = String(Math.floor(secs / 60)).padStart(2, '0')
     const s = String(secs % 60).padStart(2, '0')
-    setHudData({
-      timerStr: `${m}:${s}`,
-      timerTicks: ticks,
-      hasRemote: state.players?.[myUserId]?.powerups?.includes('remote') || false,
-      players: Object.values(state.players || {}).map(p => ({
-        userId: p.userId,
-        name: p.name,
-        color: p.color,
-        kills: p.kills || 0,
-        alive: p.alive,
-        lives: p.lives ?? 3,
-        respawning: (p.respawnTimer || 0) > 0,
-      })),
+    const isLowTime = ticks < 400
+    const powerupsRaw = state.players?.[myUserId]?.powerups
+    const hasRemote = Array.isArray(powerupsRaw) ? powerupsRaw.includes('remote') : false
+    const playersObj = Object.values(state.players || {})
+
+    setHudData(prev => {
+      // Serialize players state for fast deep-equality check
+      const playersJSON = JSON.stringify(playersObj.map(p => [p.userId, p.kills || 0, p.alive, p.lives ?? 3, (p.respawnTimer || 0) > 0]))
+      
+      if (prev &&
+          prev.timerStr === `${m}:${s}` &&
+          prev.isLowTime === isLowTime &&
+          prev.hasRemote === hasRemote &&
+          prev._playersJSON === playersJSON
+      ) {
+        return prev
+      }
+
+      return {
+        timerStr: `${m}:${s}`,
+        isLowTime,
+        hasRemote,
+        _playersJSON: playersJSON,
+        players: playersObj.map(p => ({
+          userId: p.userId,
+          name: p.name,
+          color: p.color,
+          kills: p.kills || 0,
+          alive: p.alive,
+          lives: p.lives ?? 3,
+          respawning: (p.respawnTimer || 0) > 0,
+        })),
+      }
     })
   }
 

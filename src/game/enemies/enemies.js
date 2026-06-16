@@ -90,7 +90,7 @@ export function updateEnemies(state) {
       // Smoky: leave fire trail
       if (enemy.leavesFire && Math.random() < 0.1) {
         state.explosions.push({
-          id: `smoky-${Date.now()}-${enemy.id}`,
+          id: `smoky-${state.tick}-${enemy.id}`,
           tiles: [[enemy.x, enemy.y]],
           dieTick: state.tick + 60,
           frame: 0,
@@ -109,9 +109,10 @@ export function updateEnemies(state) {
       if (enemy.leavesFire && Math.random() < 0.25) {
         state.explosions = state.explosions || []
         state.explosions.push({
+          id: `mech-${state.tick}-${enemy.id}`,
           x: enemy.x, y: enemy.y,
           frame: 0, dieTick: state.tick + 10,
-          tiles: [{ pos: [enemy.x, enemy.y], hit: 'empty' }]
+          tiles: [[enemy.x, enemy.y]]
         })
       }
       
@@ -447,14 +448,14 @@ function dragonAI(enemy, state, target) {
           const fx = enemy.x + dx * i
           const fy = enemy.y + dy * i
           if (state.grid[fy] && state.grid[fy][fx] === 1) break // Stop fire at walls
-          tiles.push({ pos: [fx, fy], hit: i === 6 ? 'end' : 'mid' })
+          tiles.push([fx, fy])
           if (state.grid[fy] && state.grid[fy][fx] === 2) {
-            tiles.push({ pos: [fx, fy], hit: 'end' })
             break // Stop fire after hitting soft block
           }
         }
         if (tiles.length > 0) {
           state.explosions.push({
+            id: `dragon-${state.tick}-${enemy.id}`,
             x: enemy.x, y: enemy.y,
             frame: 0, dieTick: state.tick + 15,
             tiles

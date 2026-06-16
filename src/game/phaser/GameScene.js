@@ -83,7 +83,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerGfx = {}
     this.enemyGfx = {}
     this.bombGfx = {}
-    this.explGfx = []
+    this.explGfx = {}
     this.pwSprites = {}
     this.labelTexts = []
     this.gateGfx = {}
@@ -462,20 +462,33 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── SYNC EXPLOSIONS (smooth fiery blast) ──────────────────────────────
   syncExplosions(state, time) {
-    for (const entry of this.explGfx) {
-      entry.gfx.destroy()
-      if (entry.glow) entry.glow.destroy()
-    }
-    this.explGfx = []
+    const activeExplosionIds = new Set()
 
     for (const exp of state.explosions) {
+      if (!exp.id) exp.id = `e-${Math.random()}`
+      activeExplosionIds.add(exp.id)
+
+      let entry = this.explGfx[exp.id]
+      if (!entry) {
+        entry = {
+          gfx: this.add.graphics().setDepth(4),
+          glow: this.add.graphics().setDepth(4.5).setBlendMode(Phaser.BlendModes.ADD)
+        }
+        this.explGfx[exp.id] = entry
+      }
+
       const progress = Math.min(1, (exp.frame || 0) / 12)
       const alpha = Math.max(0, 1 - progress * progress) // ease-out fade
 
+      entry.gfx.setAlpha(alpha)
+      entry.glow.setAlpha(alpha * 0.6)
+      entry.gfx.clear()
+      entry.glow.clear()
+
       // Main blast layer
-      const gfx = this.add.graphics().setDepth(4).setAlpha(alpha)
+      const gfx = entry.gfx
       // Additive glow layer
-      const glow = this.add.graphics().setDepth(4.5).setAlpha(alpha * 0.6).setBlendMode(Phaser.BlendModes.ADD)
+      const glow = entry.glow
 
       // Draw electric plasma on each tile
       for (const [col, row] of exp.tiles) {
@@ -519,57 +532,65 @@ export default class GameScene extends Phaser.Scene {
       }
 
       // Connect tiles with electric plasma beams
-      let minX = exp.centerX, maxX = exp.centerX
-      let minY = exp.centerY, maxY = exp.centerY
-      for (const [col, row] of exp.tiles) {
-        if (row === exp.centerY) { minX = Math.min(minX, col); maxX = Math.max(maxX, col) }
-        if (col === exp.centerX) { minY = Math.min(minY, row); maxY = Math.max(maxY, row) }
-      }
+      if (exp.centerX !== undefined && exp.centerY !== undefined) {
+        let minX = exp.centerX, maxX = exp.centerX
+        let minY = exp.centerY, maxY = exp.centerY
+        for (const [col, row] of exp.tiles) {
+          if (row === exp.centerY) { minX = Math.min(minX, col); maxX = Math.max(maxX, col) }
+          if (col === exp.centerX) { minY = Math.min(minY, row); maxY = Math.max(maxY, row) }
+        }
 
-      // Horizontal plasma beam
-      if (maxX > minX) {
-        const y = exp.centerY * TS + H
-        const x1 = minX * TS + H
-        const x2 = maxX * TS + H
-        // Wide outer discharge
-        gfx.fillStyle(0x2200aa, 0.3)
-        gfx.fillRect(x1, y - 14, x2 - x1, 28)
-        // Main beam
-        gfx.fillStyle(0x4400ff, 0.55)
-        gfx.fillRect(x1, y - 9, x2 - x1, 18)
-        // Bright core
-        gfx.fillStyle(0x8844ff, 0.8)
-        gfx.fillRect(x1, y - 5, x2 - x1, 10)
-        // White-hot center
-        gfx.fillStyle(0xbbaaff, 0.9)
-        gfx.fillRect(x1, y - 2, x2 - x1, 4)
-        gfx.fillStyle(0xffffff, 0.8)
-        gfx.fillRect(x1, y - 1, x2 - x1, 2)
-        // Additive bloom
-        glow.fillStyle(0x6600ff, 0.45)
-        glow.fillRect(x1, y - 16, x2 - x1, 32)
-      }
+        // Horizontal plasma beam
+        if (maxX > minX) {
+          const y = exp.centerY * TS + H
+          const x1 = minX * TS + H
+          const x2 = maxX * TS + H
+          // Wide outer discharge
+          gfx.fillStyle(0x2200aa, 0.3)
+          gfx.fillRect(x1, y - 14, x2 - x1, 28)
+          // Main beam
+          gfx.fillStyle(0x4400ff, 0.55)
+          gfx.fillRect(x1, y - 9, x2 - x1, 18)
+          // Bright core
+          gfx.fillStyle(0x8844ff, 0.8)
+          gfx.fillRect(x1, y - 5, x2 - x1, 10)
+          // White-hot center
+          gfx.fillStyle(0xbbaaff, 0.9)
+          gfx.fillRect(x1, y - 2, x2 - x1, 4)
+          gfx.fillStyle(0xffffff, 0.8)
+          gfx.fillRect(x1, y - 1, x2 - x1, 2)
+          // Additive bloom
+          glow.fillStyle(0x6600ff, 0.45)
+          glow.fillRect(x1, y - 16, x2 - x1, 32)
+        }
 
-      // Vertical plasma beam
-      if (maxY > minY) {
-        const x = exp.centerX * TS + H
-        const y1 = minY * TS + H
-        const y2 = maxY * TS + H
-        gfx.fillStyle(0x2200aa, 0.3)
-        gfx.fillRect(x - 14, y1, 28, y2 - y1)
-        gfx.fillStyle(0x4400ff, 0.55)
-        gfx.fillRect(x - 9, y1, 18, y2 - y1)
-        gfx.fillStyle(0x8844ff, 0.8)
-        gfx.fillRect(x - 5, y1, 10, y2 - y1)
-        gfx.fillStyle(0xbbaaff, 0.9)
-        gfx.fillRect(x - 2, y1, 4, y2 - y1)
-        gfx.fillStyle(0xffffff, 0.8)
-        gfx.fillRect(x - 1, y1, 2, y2 - y1)
-        glow.fillStyle(0x6600ff, 0.45)
-        glow.fillRect(x - 16, y1, 32, y2 - y1)
+        // Vertical plasma beam
+        if (maxY > minY) {
+          const x = exp.centerX * TS + H
+          const y1 = minY * TS + H
+          const y2 = maxY * TS + H
+          gfx.fillStyle(0x2200aa, 0.3)
+          gfx.fillRect(x - 14, y1, 28, y2 - y1)
+          gfx.fillStyle(0x4400ff, 0.55)
+          gfx.fillRect(x - 9, y1, 18, y2 - y1)
+          gfx.fillStyle(0x8844ff, 0.8)
+          gfx.fillRect(x - 5, y1, 10, y2 - y1)
+          gfx.fillStyle(0xbbaaff, 0.9)
+          gfx.fillRect(x - 2, y1, 4, y2 - y1)
+          gfx.fillStyle(0xffffff, 0.8)
+          gfx.fillRect(x - 1, y1, 2, y2 - y1)
+          glow.fillStyle(0x6600ff, 0.45)
+          glow.fillRect(x - 16, y1, 32, y2 - y1)
+        }
       }
+    }
 
-      this.explGfx.push({ gfx, glow, id: exp.id })
+    for (const id of Object.keys(this.explGfx)) {
+      if (!activeExplosionIds.has(id)) {
+        this.explGfx[id].gfx.destroy()
+        if (this.explGfx[id].glow) this.explGfx[id].glow.destroy()
+        delete this.explGfx[id]
+      }
     }
   }
 

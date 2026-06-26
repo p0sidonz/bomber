@@ -498,25 +498,13 @@ export default class GameScene extends Phaser.Scene {
         const s = isCenter ? 1.4 : 1.0
         const expand = 1 + progress * 0.4
 
-        // Floor scorch
-        gfx.fillStyle(0x000000, 0.5)
-        gfx.fillCircle(cx, cy, 22 * s)
-
         // Outer discharge ring (deep purple)
         gfx.fillStyle(0x330066, 0.5)
         gfx.fillCircle(cx, cy, 22 * s * expand)
 
-        // Mid plasma (electric violet)
-        gfx.fillStyle(0x6600cc, 0.7)
-        gfx.fillCircle(cx, cy, 15 * s * expand)
-
         // Inner core (bright blue-white)
         gfx.fillStyle(0x8844ff, 0.9)
         gfx.fillCircle(cx, cy, 10 * s * expand)
-
-        // Hot center
-        gfx.fillStyle(0xcc88ff, 0.95)
-        gfx.fillCircle(cx, cy, isCenter ? 7 : 5)
 
         // White flash core
         gfx.fillStyle(0xffffff, 1)
@@ -525,10 +513,6 @@ export default class GameScene extends Phaser.Scene {
         // Additive electric bloom
         glow.fillStyle(0x4400ff, 0.4)
         glow.fillCircle(cx, cy, 26 * s * expand)
-        glow.fillStyle(0x8800ff, 0.5)
-        glow.fillCircle(cx, cy, 16 * s * expand)
-        glow.fillStyle(0xaa66ff, 0.6)
-        glow.fillCircle(cx, cy, 8 * s)
       }
 
       // Connect tiles with electric plasma beams
@@ -824,9 +808,9 @@ export default class GameScene extends Phaser.Scene {
     // HP bar (for multi-hp enemies)
     if (enemy.hp > 1) {
       gfx.fillStyle(0x330000, 0.8)
-      gfx.fillRoundedRect(-H + 4, -H - 4, TS - 8, 5, 2)
+      gfx.fillRect(-H + 4, -H - 4, TS - 8, 5)
       gfx.fillStyle(0xee2222)
-      gfx.fillRoundedRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5, 2)
+      gfx.fillRect(-H + 4, -H - 4, Math.floor((TS - 8) * (enemy.hp / 2)), 5)
     }
   }
 
@@ -1173,7 +1157,7 @@ export default class GameScene extends Phaser.Scene {
     this._drawEnemyEyes(gfx, bob, enemy)
     // Mouth
     gfx.fillStyle(darken(color, 0.5))
-    gfx.fillRoundedRect(-4, bob + 5, 8, 3, 1.5)
+    gfx.fillRect(-4, bob + 5, 8, 3)
     // Feet
     gfx.fillStyle(darken(color, 0.35))
     gfx.fillEllipse(-5, r + bob, 5, 4)

@@ -136,11 +136,12 @@ export default function AuthScreen({ onAuth }) {
               <input
                 className="input-pixel"
                 type="email"
+                name="username"
                 placeholder="player@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username email"
               />
             </div>
 
@@ -150,6 +151,7 @@ export default function AuthScreen({ onAuth }) {
                 <input
                   className="input-pixel"
                   type="password"
+                  name="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}

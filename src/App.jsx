@@ -33,6 +33,8 @@ export default function App() {
   const [campaign, setCampaign] = useState({})
   const [muted, setMuted] = useState(getIsMuted())
 
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
   useEffect(() => {
     if (user) {
       getCampaignProgress(user.id).then(setCampaign).catch(console.error)
@@ -103,6 +105,10 @@ export default function App() {
         setUser(data.session.user)
         setScreen(curr => (!['privacy', 'tos', 'contact', 'delete_account'].includes(curr) && !window.location.hash) ? 'landing' : curr)
       }
+      setIsCheckingAuth(false)
+    }).catch((e) => {
+      console.error(e)
+      setIsCheckingAuth(false)
     })
 
     const { data: { subscription } } = onAuthChange((event, session) => {
@@ -141,6 +147,17 @@ export default function App() {
   }
 
   const renderScreen = () => {
+    if (isCheckingAuth) {
+      return (
+        <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#060610] gap-6">
+          <img src="/splash.png" alt="Omega Arena" className="w-64 max-w-[80vw] object-contain drop-shadow-[0_0_20px_rgba(0,212,255,0.3)] animate-pulse" />
+          <div className="text-bm-accent text-xl font-bold tracking-[0.2em]" style={{ fontFamily: 'Rajdhani,sans-serif' }}>
+            LOADING...
+          </div>
+        </div>
+      )
+    }
+
     if (screen === 'auth') return <AuthScreen onAuth={(u) => { setUser(u); setScreen('landing') }} />
     if (screen === 'reset_password') return <ResetPasswordScreen nav={nav} />
     if (screen === 'landing') return <LandingScreen user={user} campaign={campaign} setCampaign={setCampaign} nav={nav} />

@@ -9,6 +9,7 @@ export default function LevelSelectScreen({ user, campaign, setCampaign, nav }) 
   const [showStore, setShowStore] = useState(false)
   const [showLoadout, setShowLoadout] = useState(null)
   const [buying, setBuying] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   
   const [selectedPowerup, setSelectedPowerup] = useState(null)
   const [buyLife, setBuyLife] = useState(false)
@@ -129,6 +130,25 @@ export default function LevelSelectScreen({ user, campaign, setCampaign, nav }) 
             <div className="w-6 h-6 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-yellow-400 text-lg leading-none font-bold pb-0.5">
               +
             </div>
+          </div>
+
+          {/* Help Icon */}
+          <div
+            onClick={() => setShowHelp(true)}
+            className="hover:bg-white/10 hover:border-white/30 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+              transition: 'all 0.2s', flexShrink: 0,
+            }}
+          >
+            <span style={{
+              fontFamily: 'Outfit,sans-serif', fontWeight: 800, fontSize: 16,
+              color: 'rgba(255,255,255,0.6)',
+            }}>?</span>
           </div>
         </div>
 
@@ -403,6 +423,101 @@ export default function LevelSelectScreen({ user, campaign, setCampaign, nav }) 
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          Help Modal
+          ═══════════════════════════════════════════════════════ */}
+      {showHelp && (
+        <div 
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+            animation: 'fadeIn 0.2s ease-out forwards',
+          }}
+          onClick={() => setShowHelp(false)}
+        >
+          <div 
+            style={{
+              width: '100%', maxWidth: 380,
+              background: 'linear-gradient(180deg, rgba(12,12,32,0.95) 0%, rgba(6,6,18,0.95) 100%)',
+              border: '1.5px solid rgba(0,212,255,0.2)', borderRadius: 20, padding: '24px 28px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 30px rgba(0,212,255,0.1) inset',
+              display: 'flex', flexDirection: 'column', gap: 20,
+              animation: 'fadeSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              maxHeight: '85vh', overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 18, fontWeight: 800, color: '#00d4ff', letterSpacing: '0.1em' }}>
+                HOW IT WORKS
+              </h2>
+              <button 
+                onClick={() => setShowHelp(false)}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >×</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: 'Outfit,sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 16 }}>⬢</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: 2 }}>Sector Map</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>The hexagonal path shows all 50 sectors. Blue nodes are completed, the glowing gold node is your current position, and locked nodes are ahead.</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 16 }}>🪙</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: 2 }}>Coins</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>Coins let you buy pre-game loadouts (extra life, guaranteed power-up), skip tough sectors, or purchase from the store. Tap the coin balance to open the store.</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 16 }}>📺</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: 2 }}>Earn Free Coins</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>Watch a short ad to earn 1 free coin. You can do this from Settings on the main menu, or from the pause menu during gameplay!</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 16 }}>🎯</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: 2 }}>Mission Prep</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>Tap any unlocked sector to open Mission Prep. Here you can buy an Extra Life (+1 health) or select a First Drop Assurance (guaranteed first power-up) before starting.</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 16 }}>💡</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: 2 }}>Tips</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>Power-ups carry forward between sectors! If you die, you can watch an ad to revive with 1 life. Every 3rd sector, you earn a bonus life.</div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              style={{
+                width: '100%',
+                fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 14, fontWeight: 700,
+                letterSpacing: '0.12em', color: '#00d4ff',
+                background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)',
+                padding: '12px', borderRadius: 10, cursor: 'pointer',
+                transition: 'all 0.2s', marginTop: 8,
+              }}
+              className="hover:bg-cyan-500/20 hover:border-cyan-500/50"
+              onClick={() => setShowHelp(false)}
+            >
+              GOT IT
+            </button>
           </div>
         </div>
       )}

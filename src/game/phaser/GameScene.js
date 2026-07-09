@@ -74,6 +74,7 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     this.genTextures()
+    this._enhanceTextures()
 
     // Generate player-colored portal texture
     this._genPortalTexture()
@@ -267,6 +268,265 @@ export default class GameScene extends Phaser.Scene {
     g.destroy()
   }
 
+  _texOverride(key, drawFn) {
+    if (this.textures.exists(key)) this.textures.remove(key)
+    this._tex(key, drawFn)
+  }
+
+  // ─── PREMIUM TEXTURE ENHANCEMENT ─────────────────────────────────────
+  _enhanceTextures() {
+    const theme = this.stateRef?.current?.theme || 'classic'
+    const isArena = theme === 'arena'
+
+    // Circuit/lava trace segment data for 4 floor variants [x1,y1, x2,y2]
+    const traces = [
+      [[0,.35, .4,.35],[.4,.35, .4,1],[.72,0, .72,.62],[.72,.62, 1,.62]],
+      [[0,.5, .55,.5],[.55,.5, .55,1],[.2,0, .2,.35],[.2,.35, .5,.35]],
+      [[0,.3, .6,.3],[.6,.3, .6,.7],[.6,.7, 1,.7]],
+      [[.5,0, .5,.5],[.5,.5, 1,.5],[0,.65, .35,.65],[.35,.65, .35,1]],
+    ]
+    const ics = [[.15,.15],[.82,.2],[.2,.82],[.78,.78]]
+    const fKeys = ['floor_a','floor_b','floor_c','floor_d']
+
+    // ── FLOOR TILES (4 variants) ──
+    for (let v = 0; v < 4; v++) {
+      this._texOverride(fKeys[v], (g) => {
+        if (isArena) {
+          // Volcanic stone floor
+          g.fillStyle(0x160606); g.fillRect(0, 0, TS, TS)
+          g.fillStyle(0x2a0e0a, 0.3); g.fillCircle(H, H, H * 0.7)
+          // Stone grain grid
+          g.lineStyle(0.5, 0x3c190f, 0.18)
+          for (let i = 0; i <= TS; i += 8) {
+            g.beginPath(); g.moveTo(i, 0); g.lineTo(i, TS); g.strokePath()
+            g.beginPath(); g.moveTo(0, i); g.lineTo(TS, i); g.strokePath()
+          }
+          // Lava veins
+          g.lineStyle(1, 0xff5000, 0.22)
+          for (const s of traces[v]) {
+            g.beginPath(); g.moveTo(s[0]*TS, s[1]*TS); g.lineTo(s[2]*TS, s[3]*TS); g.strokePath()
+          }
+          // Junction glow
+          for (let i = 0; i < traces[v].length - 1; i++) {
+            const a = traces[v][i], b = traces[v][i+1]
+            if (Math.abs(a[2]-b[0]) < .02 && Math.abs(a[3]-b[1]) < .02) {
+              g.fillStyle(0xff6400, 0.25); g.fillCircle(a[2]*TS, a[3]*TS, 4)
+              g.fillStyle(0xff8c00, 0.45); g.fillCircle(a[2]*TS, a[3]*TS, 2)
+            }
+          }
+          g.fillStyle(0xff5000, 0.3)
+          g.fillRect(0,0,2,2); g.fillRect(TS-2,0,2,2)
+          g.fillRect(0,TS-2,2,2); g.fillRect(TS-2,TS-2,2,2)
+        } else {
+          // Cyberpunk circuit board floor
+          g.fillStyle(0x06061a); g.fillRect(0, 0, TS, TS)
+          g.fillStyle(0x0c1430, 0.3); g.fillCircle(H, H, H * 0.7)
+          // Micro grid
+          g.lineStyle(0.5, 0x122850, 0.22)
+          for (let i = 0; i <= TS; i += 6) {
+            g.beginPath(); g.moveTo(i, 0); g.lineTo(i, TS); g.strokePath()
+            g.beginPath(); g.moveTo(0, i); g.lineTo(TS, i); g.strokePath()
+          }
+          // Circuit traces
+          g.lineStyle(1.2, 0x00a0f0, 0.20)
+          for (const s of traces[v]) {
+            g.beginPath(); g.moveTo(s[0]*TS, s[1]*TS); g.lineTo(s[2]*TS, s[3]*TS); g.strokePath()
+          }
+          // Junction nodes
+          for (let i = 0; i < traces[v].length - 1; i++) {
+            const a = traces[v][i], b = traces[v][i+1]
+            if (Math.abs(a[2]-b[0]) < .02 && Math.abs(a[3]-b[1]) < .02) {
+              g.fillStyle(0x00e0ff, 0.15); g.fillCircle(a[2]*TS, a[3]*TS, 5)
+              g.fillStyle(0x00d0ff, 0.55); g.fillCircle(a[2]*TS, a[3]*TS, 2)
+            }
+          }
+          // IC component
+          const ic = ics[v]
+          g.fillStyle(0x0f2850, 0.45); g.fillRect(ic[0]*TS-3, ic[1]*TS-2, 6, 4)
+          g.fillStyle(0x0082c8, 0.3)
+          g.fillRect(ic[0]*TS-3,ic[1]*TS-3,1,1); g.fillRect(ic[0]*TS+2,ic[1]*TS-3,1,1)
+          g.fillRect(ic[0]*TS-3,ic[1]*TS+2,1,1); g.fillRect(ic[0]*TS+2,ic[1]*TS+2,1,1)
+          // Corner dots
+          g.fillStyle(0x1a3ca0, 0.45)
+          g.fillRect(0,0,2,2); g.fillRect(TS-2,0,2,2)
+          g.fillRect(0,TS-2,2,2); g.fillRect(TS-2,TS-2,2,2)
+        }
+      })
+    }
+
+    // ── SOLID WALL (3D Beveled) ──
+    this._texOverride('wall_solid', (g) => {
+      if (isArena) {
+        g.fillStyle(0x100404); g.fillRect(0,0,TS,TS)
+        // Top highlight
+        g.fillStyle(0xc86432, 0.60); g.fillRect(0,0,TS,1)
+        g.fillStyle(0xa85028, 0.45); g.fillRect(0,1,TS,1)
+        g.fillStyle(0x883c1e, 0.30); g.fillRect(0,2,TS,1)
+        g.fillStyle(0x682814, 0.15); g.fillRect(0,3,TS,1)
+        // Left highlight
+        g.fillStyle(0xb45c2e, 0.48); g.fillRect(0,4,1,TS-8)
+        g.fillStyle(0x944824, 0.32); g.fillRect(1,4,1,TS-8)
+        // Bottom shadow
+        g.fillStyle(0x000000, 0.85); g.fillRect(0,TS-1,TS,1)
+        g.fillStyle(0x000000, 0.60); g.fillRect(0,TS-2,TS,1)
+        g.fillStyle(0x000000, 0.35); g.fillRect(0,TS-3,TS,1)
+        // Right shadow
+        g.fillStyle(0x000000, 0.70); g.fillRect(TS-1,4,1,TS-8)
+        g.fillStyle(0x000000, 0.45); g.fillRect(TS-2,4,1,TS-8)
+        // Inner recessed panel
+        g.fillStyle(0x2a0d08); g.fillRect(4,4,TS-8,TS-8)
+        g.fillStyle(0xb45028, 0.22); g.fillRect(4,4,TS-8,2)
+        g.fillStyle(0xb45028, 0.18); g.fillRect(4,4,2,TS-8)
+        g.fillStyle(0x000000, 0.40); g.fillRect(4,TS-6,TS-8,2)
+        g.fillStyle(0x000000, 0.35); g.fillRect(TS-6,4,2,TS-8)
+        // Panel seams
+        g.lineStyle(0.5, 0xff6400, 0.12)
+        g.beginPath(); g.moveTo(H,7); g.lineTo(H,TS-7); g.strokePath()
+        g.beginPath(); g.moveTo(7,H); g.lineTo(TS-7,H); g.strokePath()
+        // Corner rivets
+        const arv = [[8,8],[TS-9,8],[8,TS-9],[TS-9,TS-9]]
+        for (const p of arv) { g.fillStyle(0xc86428,0.40); g.fillCircle(p[0],p[1],2.5); g.fillStyle(0xff9650,0.55); g.fillCircle(p[0]-.5,p[1]-.5,1) }
+        g.lineStyle(1, 0xff6400, 0.30); g.strokeRect(1,1,TS-2,TS-2)
+      } else {
+        g.fillStyle(0x040410); g.fillRect(0,0,TS,TS)
+        // Top highlight (cyan)
+        g.fillStyle(0x5ac8ff, 0.65); g.fillRect(0,0,TS,1)
+        g.fillStyle(0x4aaadd, 0.48); g.fillRect(0,1,TS,1)
+        g.fillStyle(0x3888bb, 0.32); g.fillRect(0,2,TS,1)
+        g.fillStyle(0x266699, 0.18); g.fillRect(0,3,TS,1)
+        g.fillStyle(0x184477, 0.08); g.fillRect(0,4,TS,1)
+        // Left highlight
+        g.fillStyle(0x4ab8ee, 0.55); g.fillRect(0,5,1,TS-10)
+        g.fillStyle(0x3899cc, 0.38); g.fillRect(1,5,1,TS-10)
+        g.fillStyle(0x267aaa, 0.22); g.fillRect(2,5,1,TS-10)
+        g.fillStyle(0x186088, 0.10); g.fillRect(3,5,1,TS-10)
+        // Bottom shadow
+        g.fillStyle(0x000010, 0.85); g.fillRect(0,TS-1,TS,1)
+        g.fillStyle(0x000015, 0.60); g.fillRect(0,TS-2,TS,1)
+        g.fillStyle(0x000020, 0.35); g.fillRect(0,TS-3,TS,1)
+        g.fillStyle(0x000025, 0.15); g.fillRect(0,TS-4,TS,1)
+        // Right shadow
+        g.fillStyle(0x000008, 0.75); g.fillRect(TS-1,5,1,TS-10)
+        g.fillStyle(0x000010, 0.50); g.fillRect(TS-2,5,1,TS-10)
+        g.fillStyle(0x000018, 0.25); g.fillRect(TS-3,5,1,TS-10)
+        // Inner recessed panel
+        g.fillStyle(0x0f2540); g.fillRect(5,5,TS-10,TS-10)
+        g.fillStyle(0x3c8cc8, 0.25); g.fillRect(5,5,TS-10,2)
+        g.fillStyle(0x3c8cc8, 0.20); g.fillRect(5,5,2,TS-10)
+        g.fillStyle(0x000008, 0.45); g.fillRect(5,TS-7,TS-10,2)
+        g.fillStyle(0x000008, 0.40); g.fillRect(TS-7,5,2,TS-10)
+        // Panel seams
+        g.lineStyle(0.5, 0x194682, 0.18)
+        g.beginPath(); g.moveTo(H,7); g.lineTo(H,TS-7); g.strokePath()
+        g.beginPath(); g.moveTo(7,H); g.lineTo(TS-7,H); g.strokePath()
+        // Diagonal accent
+        g.lineStyle(0.5, 0x00a0f0, 0.10)
+        g.beginPath(); g.moveTo(8,8); g.lineTo(TS-8,TS-8); g.strokePath()
+        // Circuit trace
+        g.lineStyle(1, 0x00aaff, 0.14)
+        g.beginPath(); g.moveTo(9,TS*.35); g.lineTo(TS*.3,TS*.35); g.lineTo(TS*.3,TS*.65); g.lineTo(TS-9,TS*.65); g.strokePath()
+        // Corner rivets
+        const rv = [[8,8],[TS-9,8],[8,TS-9],[TS-9,TS-9]]
+        for (const p of rv) { g.fillStyle(0x469ad2,0.45); g.fillCircle(p[0],p[1],2.5); g.fillStyle(0x96dcff,0.65); g.fillCircle(p[0]-.5,p[1]-.5,1) }
+        // Edge glow
+        g.lineStyle(1, 0x00aaff, 0.35); g.strokeRect(1,1,TS-2,TS-2)
+      }
+    })
+
+    // ── SOFT WALL (Cracked Crystal / Ash Block) ──
+    this._texOverride('wall_soft', (g) => {
+      if (isArena) {
+        g.fillStyle(0x1a0e0e); g.fillRect(0,0,TS,TS)
+        // Bevel
+        g.fillStyle(0x8c6450, 0.45); g.fillRect(0,0,TS,1)
+        g.fillStyle(0x705040, 0.30); g.fillRect(0,1,TS,1)
+        g.fillStyle(0x543c30, 0.18); g.fillRect(0,2,TS,1)
+        g.fillStyle(0x785846, 0.32); g.fillRect(0,3,1,TS-6)
+        g.fillStyle(0x5c4436, 0.20); g.fillRect(1,3,1,TS-6)
+        g.fillStyle(0x000000, 0.75); g.fillRect(0,TS-1,TS,1)
+        g.fillStyle(0x000000, 0.48); g.fillRect(0,TS-2,TS,1)
+        g.fillStyle(0x000000, 0.62); g.fillRect(TS-1,3,1,TS-6)
+        g.fillStyle(0x000000, 0.38); g.fillRect(TS-2,3,1,TS-6)
+        // Inner panel
+        g.fillStyle(0x2a1a15); g.fillRect(3,3,TS-6,TS-6)
+        g.fillStyle(0x785040, 0.18); g.fillRect(3,3,TS-6,2)
+        g.fillStyle(0x785040, 0.14); g.fillRect(3,3,2,TS-6)
+        g.fillStyle(0x000000, 0.28); g.fillRect(3,TS-5,TS-6,2)
+        g.fillStyle(0x000000, 0.22); g.fillRect(TS-5,3,2,TS-6)
+        // Lava cracks
+        g.lineStyle(1.5, 0xff8200, 0.50)
+        g.beginPath(); g.moveTo(10,8); g.lineTo(TS*.4,TS*.4); g.lineTo(TS*.5,TS*.5); g.lineTo(TS*.35,TS-8); g.strokePath()
+        g.beginPath(); g.moveTo(TS*.4,TS*.4); g.lineTo(TS-8,TS*.45); g.strokePath()
+        g.fillStyle(0xff7800, 0.22); g.fillCircle(TS*.4, TS*.4, 5)
+        g.fillStyle(0xff5000, 0.16); g.fillCircle(TS*.5, TS*.5, 4)
+        // Damaged corners
+        g.fillStyle(0x0a0505); g.fillRect(0,0,3,3); g.fillRect(TS-3,TS-3,3,3)
+        g.lineStyle(1, 0xa05028, 0.30); g.strokeRect(1,1,TS-2,TS-2)
+      } else {
+        g.fillStyle(0x0c0518); g.fillRect(0,0,TS,TS)
+        // Purple bevel
+        g.fillStyle(0xaa50ff, 0.50); g.fillRect(0,0,TS,1)
+        g.fillStyle(0x8840dd, 0.35); g.fillRect(0,1,TS,1)
+        g.fillStyle(0x6630bb, 0.22); g.fillRect(0,2,TS,1)
+        g.fillStyle(0x442099, 0.10); g.fillRect(0,3,TS,1)
+        g.fillStyle(0x8c3cdc, 0.38); g.fillRect(0,4,1,TS-8)
+        g.fillStyle(0x6a2cba, 0.25); g.fillRect(1,4,1,TS-8)
+        g.fillStyle(0x481c98, 0.14); g.fillRect(2,4,1,TS-8)
+        g.fillStyle(0x000008, 0.80); g.fillRect(0,TS-1,TS,1)
+        g.fillStyle(0x000010, 0.52); g.fillRect(0,TS-2,TS,1)
+        g.fillStyle(0x000018, 0.28); g.fillRect(0,TS-3,TS,1)
+        g.fillStyle(0x000005, 0.62); g.fillRect(TS-1,4,1,TS-8)
+        g.fillStyle(0x00000a, 0.42); g.fillRect(TS-2,4,1,TS-8)
+        // Crystal panel
+        g.fillStyle(0x1e0c3a); g.fillRect(4,4,TS-8,TS-8)
+        g.fillStyle(0xa03cf0, 0.20); g.fillRect(4,4,TS-8,2)
+        g.fillStyle(0xa03cf0, 0.15); g.fillRect(4,4,2,TS-8)
+        g.fillStyle(0x000008, 0.35); g.fillRect(4,TS-6,TS-8,2)
+        g.fillStyle(0x000008, 0.30); g.fillRect(TS-6,4,2,TS-8)
+        // Crack patterns with energy glow
+        g.lineStyle(1.2, 0xc846ff, 0.45)
+        g.beginPath(); g.moveTo(TS*.2,5); g.lineTo(TS*.35,TS*.38); g.lineTo(TS*.5,TS*.43); g.lineTo(TS*.55,TS*.68); g.lineTo(TS*.42,TS-5); g.strokePath()
+        g.beginPath(); g.moveTo(TS*.35,TS*.38); g.lineTo(TS*.62,TS*.32); g.lineTo(TS-5,TS*.48); g.strokePath()
+        // Energy glow at cracks
+        g.fillStyle(0xdc50ff, 0.22); g.fillCircle(TS*.35, TS*.38, 5)
+        g.fillStyle(0xff64ff, 0.28); g.fillCircle(TS*.5, TS*.43, 4)
+        g.fillStyle(0xdc50ff, 0.16); g.fillCircle(TS*.55, TS*.68, 4)
+        // Facet lines
+        g.lineStyle(0.5, 0x5a2396, 0.15)
+        g.beginPath(); g.moveTo(7,TS*.28); g.lineTo(TS*.4,TS*.6); g.strokePath()
+        g.beginPath(); g.moveTo(TS*.6,7); g.lineTo(TS-7,TS*.42); g.strokePath()
+        // Crystal corner accents
+        g.fillStyle(0xaa46ff, 0.30)
+        g.fillCircle(5,5,2); g.fillCircle(TS-6,5,2)
+        g.fillCircle(5,TS-6,2); g.fillCircle(TS-6,TS-6,2)
+        // Border glow
+        g.lineStyle(1, 0xaa32ff, 0.38); g.strokeRect(1,1,TS-2,TS-2)
+      }
+    })
+
+    // ── GATE EXIT (Enhanced) ──
+    this._texOverride('gate_exit', (g) => {
+      g.fillStyle(0x030310); g.fillRect(0,0,TS,TS)
+      g.fillStyle(0x1a1400); g.fillRect(3,3,TS-6,TS-6)
+      g.fillStyle(0xf0c040, 0.10); g.fillCircle(H,H,22)
+      g.fillStyle(0xf0c040, 0.20); g.fillCircle(H,H,18)
+      g.fillStyle(0xffd700, 0.35); g.fillCircle(H,H,13)
+      g.fillStyle(0xffe566, 0.60); g.fillCircle(H,H,8)
+      g.fillStyle(0xfff5aa, 0.90); g.fillCircle(H,H,4)
+      g.fillStyle(0xffffff); g.fillCircle(H,H,2)
+      // 3D gold border
+      g.fillStyle(0xf0c040, 0.55); g.fillRect(0,0,TS,2)
+      g.fillStyle(0xf0c040, 0.45); g.fillRect(0,0,2,TS)
+      g.fillStyle(0x806020, 0.60); g.fillRect(0,TS-2,TS,2)
+      g.fillStyle(0x806020, 0.50); g.fillRect(TS-2,0,2,TS)
+      g.fillStyle(0xffdd50, 0.5)
+      g.fillRect(0,0,4,2); g.fillRect(0,0,2,4)
+      g.fillRect(TS-4,0,4,2); g.fillRect(TS-2,0,2,4)
+      g.fillRect(0,TS-2,4,2); g.fillRect(0,TS-4,2,4)
+      g.fillRect(TS-4,TS-2,4,2); g.fillRect(TS-2,TS-4,2,4)
+    })
+  }
+
   // ─── BUILD INITIAL GRID ────────────────────────────────────────────────
   buildGrid() {
     const state = this.stateRef?.current
@@ -281,7 +541,7 @@ export default class GameScene extends Phaser.Scene {
       for (let col = 0; col < cols; col++) {
         const x = col * TS + H
         const y = row * TS + H
-        const floor = this.add.image(x, y, 'floor_a').setDepth(0)
+        const floor = this.add.image(x, y, 'floor_' + 'abcd'[(row * 7 + col * 13) % 4]).setDepth(0)
 
         let wall = null
         const tile = grid[row][col]
@@ -460,7 +720,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── SYNC EXPLOSIONS (smooth fiery blast) ──────────────────────────────
+  // ─── SYNC EXPLOSIONS (radiant plasma cross blast) ──────────────────────
   syncExplosions(state, time) {
     const activeExplosionIds = new Set()
 
@@ -472,50 +732,58 @@ export default class GameScene extends Phaser.Scene {
       if (!entry) {
         entry = {
           gfx: this.add.graphics().setDepth(4),
-          glow: this.add.graphics().setDepth(4.5).setBlendMode(Phaser.BlendModes.ADD)
+          glow: this.add.graphics().setDepth(4.5).setBlendMode(Phaser.BlendModes.ADD),
+          spark: this.add.graphics().setDepth(4.6).setBlendMode(Phaser.BlendModes.ADD),
+          seed: Math.floor(Math.random() * 100000) + 1,
         }
         this.explGfx[exp.id] = entry
       }
 
-      const progress = Math.min(1, (exp.frame || 0) / 12)
+      const frame = exp.frame || 0
+      const progress = Math.min(1, frame / 12)
       const alpha = Math.max(0, 1 - progress * progress) // ease-out fade
+      const flash = Math.max(0, 1 - progress * 4) // hot white spike, first few frames only
+      const expand = 1 + progress * 0.55
 
       entry.gfx.setAlpha(alpha)
-      entry.glow.setAlpha(alpha * 0.6)
+      entry.glow.setAlpha(alpha * 0.75)
+      entry.spark.setAlpha(Math.max(0, 1 - progress * 0.85))
       entry.gfx.clear()
       entry.glow.clear()
+      entry.spark.clear()
 
-      // Main blast layer
-      const gfx = entry.gfx
-      // Additive glow layer
-      const glow = entry.glow
+      const gfx = entry.gfx     // main blast layer
+      const glow = entry.glow  // additive bloom layer
+      const spark = entry.spark // additive debris/sparkle layer
 
-      // Draw electric plasma on each tile
+      // Draw layered plasma bloom on each tile
       for (const [col, row] of exp.tiles) {
         const cx = col * TS + H
         const cy = row * TS + H
         const isCenter = col === exp.centerX && row === exp.centerY
-        const s = isCenter ? 1.4 : 1.0
-        const expand = 1 + progress * 0.4
+        const s = isCenter ? 1.7 : 1.05
 
-        // Outer discharge ring (deep purple)
-        gfx.fillStyle(0x330066, 0.5)
-        gfx.fillCircle(cx, cy, 22 * s * expand)
+        // Deep violet outer discharge
+        gfx.fillStyle(0x2a0055, 0.45)
+        gfx.fillCircle(cx, cy, 24 * s * expand)
+        // Mid-purple ring
+        gfx.fillStyle(0x6622ee, 0.55)
+        gfx.fillCircle(cx, cy, 16 * s * expand)
+        // Bright violet core
+        gfx.fillStyle(0x9955ff, 0.85)
+        gfx.fillCircle(cx, cy, 9 * s * expand)
+        // White-hot center (spikes brighter on impact)
+        gfx.fillStyle(0xffffff, isCenter ? 1 : 0.9)
+        gfx.fillCircle(cx, cy, (isCenter ? 6 : 3) + flash * 4)
 
-        // Inner core (bright blue-white)
-        gfx.fillStyle(0x8844ff, 0.9)
-        gfx.fillCircle(cx, cy, 10 * s * expand)
-
-        // White flash core
-        gfx.fillStyle(0xffffff, 1)
-        gfx.fillCircle(cx, cy, isCenter ? 4 : 2.5)
-
-        // Additive electric bloom
-        glow.fillStyle(0x4400ff, 0.4)
-        glow.fillCircle(cx, cy, 26 * s * expand)
+        // Additive bloom halo
+        glow.fillStyle(0x7733ff, 0.5)
+        glow.fillCircle(cx, cy, 30 * s * expand)
+        glow.fillStyle(0xaa88ff, 0.25)
+        glow.fillCircle(cx, cy, 40 * s * expand)
       }
 
-      // Connect tiles with electric plasma beams
+      // Connect tiles with radiant plasma beams + center flourishes
       if (exp.centerX !== undefined && exp.centerY !== undefined) {
         let minX = exp.centerX, maxX = exp.centerX
         let minY = exp.centerY, maxY = exp.centerY
@@ -523,48 +791,61 @@ export default class GameScene extends Phaser.Scene {
           if (row === exp.centerY) { minX = Math.min(minX, col); maxX = Math.max(maxX, col) }
           if (col === exp.centerX) { minY = Math.min(minY, row); maxY = Math.max(maxY, row) }
         }
+        const ccx = exp.centerX * TS + H
+        const ccy = exp.centerY * TS + H
 
         // Horizontal plasma beam
         if (maxX > minX) {
-          const y = exp.centerY * TS + H
+          const y = ccy
           const x1 = minX * TS + H
           const x2 = maxX * TS + H
-          // Wide outer discharge
-          gfx.fillStyle(0x2200aa, 0.3)
-          gfx.fillRect(x1, y - 14, x2 - x1, 28)
-          // Main beam
-          gfx.fillStyle(0x4400ff, 0.55)
-          gfx.fillRect(x1, y - 9, x2 - x1, 18)
-          // Bright core
-          gfx.fillStyle(0x8844ff, 0.8)
-          gfx.fillRect(x1, y - 5, x2 - x1, 10)
-          // White-hot center
-          gfx.fillStyle(0xbbaaff, 0.9)
-          gfx.fillRect(x1, y - 2, x2 - x1, 4)
-          gfx.fillStyle(0xffffff, 0.8)
-          gfx.fillRect(x1, y - 1, x2 - x1, 2)
-          // Additive bloom
-          glow.fillStyle(0x6600ff, 0.45)
-          glow.fillRect(x1, y - 16, x2 - x1, 32)
+          gfx.fillStyle(0x330077, 0.28); gfx.fillRect(x1, y - 15, x2 - x1, 30)
+          gfx.fillStyle(0x6622ee, 0.5); gfx.fillRect(x1, y - 9, x2 - x1, 18)
+          gfx.fillStyle(0xaa77ff, 0.8); gfx.fillRect(x1, y - 5, x2 - x1, 10)
+          gfx.fillStyle(0xffffff, 0.95); gfx.fillRect(x1, y - 2, x2 - x1, 4)
+          glow.fillStyle(0x8855ff, 0.45); glow.fillRect(x1, y - 18, x2 - x1, 36)
         }
 
         // Vertical plasma beam
         if (maxY > minY) {
-          const x = exp.centerX * TS + H
+          const x = ccx
           const y1 = minY * TS + H
           const y2 = maxY * TS + H
-          gfx.fillStyle(0x2200aa, 0.3)
-          gfx.fillRect(x - 14, y1, 28, y2 - y1)
-          gfx.fillStyle(0x4400ff, 0.55)
-          gfx.fillRect(x - 9, y1, 18, y2 - y1)
-          gfx.fillStyle(0x8844ff, 0.8)
-          gfx.fillRect(x - 5, y1, 10, y2 - y1)
-          gfx.fillStyle(0xbbaaff, 0.9)
-          gfx.fillRect(x - 2, y1, 4, y2 - y1)
-          gfx.fillStyle(0xffffff, 0.8)
-          gfx.fillRect(x - 1, y1, 2, y2 - y1)
-          glow.fillStyle(0x6600ff, 0.45)
-          glow.fillRect(x - 16, y1, 32, y2 - y1)
+          gfx.fillStyle(0x330077, 0.28); gfx.fillRect(x - 15, y1, 30, y2 - y1)
+          gfx.fillStyle(0x6622ee, 0.5); gfx.fillRect(x - 9, y1, 18, y2 - y1)
+          gfx.fillStyle(0xaa77ff, 0.8); gfx.fillRect(x - 5, y1, 10, y2 - y1)
+          gfx.fillStyle(0xffffff, 0.95); gfx.fillRect(x - 2, y1, 4, y2 - y1)
+          glow.fillStyle(0x8855ff, 0.45); glow.fillRect(x - 18, y1, 36, y2 - y1)
+        }
+
+        // Central starburst flash — the bright white cross-flare punch
+        if (flash > 0) {
+          const starLen = 34 + progress * 20
+          gfx.fillStyle(0xffffff, flash)
+          gfx.fillRect(ccx - 1.5, ccy - starLen, 3, starLen * 2)
+          gfx.fillRect(ccx - starLen, ccy - 1.5, starLen * 2, 3)
+          glow.fillStyle(0xddccff, flash * 0.7)
+          glow.fillCircle(ccx, ccy, 26 + progress * 10)
+        }
+
+        // Expanding shockwave ring
+        const ringR = 8 + progress * 46
+        gfx.lineStyle(3, 0xbb99ff, alpha * 0.8)
+        gfx.strokeCircle(ccx, ccy, ringR)
+        gfx.lineStyle(1, 0xffffff, alpha * 0.5)
+        gfx.strokeCircle(ccx, ccy, ringR - 3)
+
+        // Sparkle debris flying outward from the blast center
+        const sparkCount = 14
+        for (let i = 0; i < sparkCount; i++) {
+          const rnd = Math.abs(Math.sin(entry.seed + i * 977))
+          const angle = (i / sparkCount) * Math.PI * 2 + rnd * 0.5
+          const dist = 10 + progress * (50 + rnd * 30)
+          const px = ccx + Math.cos(angle) * dist
+          const py = ccy + Math.sin(angle) * dist
+          const size = Math.max(0.4, (1 - progress) * (1.5 + rnd * 1.5))
+          spark.fillStyle(i % 3 === 0 ? 0xffffff : 0xaa88ff, 0.9)
+          spark.fillCircle(px, py, size)
         }
       }
     }
@@ -573,6 +854,7 @@ export default class GameScene extends Phaser.Scene {
       if (!activeExplosionIds.has(id)) {
         this.explGfx[id].gfx.destroy()
         if (this.explGfx[id].glow) this.explGfx[id].glow.destroy()
+        if (this.explGfx[id].spark) this.explGfx[id].spark.destroy()
         delete this.explGfx[id]
       }
     }
@@ -755,6 +1037,12 @@ export default class GameScene extends Phaser.Scene {
     // Ground shadow
     gfx.fillStyle(0x000000, 0.25)
     gfx.fillEllipse(0, 18, 22, 7)
+
+    // Ambient energy glow (enemy pop effect)
+    gfx.fillStyle(color, 0.06)
+    gfx.fillCircle(0, bob, 24)
+    gfx.fillStyle(color, 0.10)
+    gfx.fillCircle(0, bob, 16)
 
     if (enemy.type === 'BossBomb') {
       this._drawBoss(gfx, enemy, color, bob)
@@ -1302,7 +1590,9 @@ export default class GameScene extends Phaser.Scene {
     const frame = player.frame || 0
     const hover = Math.sin(frame * 0.4) * 2 // smooth hover bob
 
-    // ── GROUND SHADOW (hover glow instead of hard shadow) ──
+    // ── GROUND SHADOW + ENERGY GLOW ──
+    gfx.fillStyle(color, 0.04)
+    gfx.fillCircle(0, 0 - hover, 28)
     gfx.fillStyle(color, 0.08)
     gfx.fillEllipse(0, 16, 28, 10)
     gfx.fillStyle(color, 0.04)

@@ -8,6 +8,7 @@ import { initInput, destroyInput, getPlayerInput } from '../game/input/input.js'
 import { sfx, playBGM, stopBGM, setBGMFast, toggleMute, getIsMuted } from '../game/audio/audio.js'
 import { insertHighScore, saveCampaignProgress } from '../supabase.js'
 import { adOnGameOver, adOnLevelClear, adOnQuit, showRewardedAd } from '../admob.js'
+import { Capacitor } from '@capacitor/core'
 import PhaserGame from '../game/phaser/PhaserGame.jsx'
 import MobileControls from '../components/MobileControls.jsx'
 
@@ -53,6 +54,16 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
   const clearLevelTimeoutRef = useRef(null)
   const [skipAdsWatched, setSkipAdsWatched] = useState(0)
   const [skipping, setSkipping] = useState(false)
+
+  // In-game tutorial state
+  const [tutorialStep, setTutorialStep] = useState(-1) // -1 = not active
+  const tutorialShownRef = useRef(false)
+
+  // Earn coin in pause menu
+  const [earningCoinPause, setEarningCoinPause] = useState(false)
+
+  // Rate prompt after milestones
+  const [showRatePrompt, setShowRatePrompt] = useState(false)
 
   // Handle hardware back button
   useEffect(() => {
@@ -162,6 +173,16 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
         return prev
       })
     }, 3500)
+
+    // Trigger in-game tutorial for first-time Sector 1 play
+    if (level === 1 && !tutorialShownRef.current && !localStorage.getItem('bm_game_tutorial_done')) {
+      tutorialShownRef.current = true
+      // Start tutorial after loading screen auto-dismisses
+      setTimeout(() => {
+        if (stateRef.current) stateRef.current.status = 'paused'
+        setTutorialStep(0)
+      }, 3800)
+    }
 
     // Play BGM
     if (level % 10 === 0) playBGM('boss')
@@ -374,6 +395,17 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
 
     clearLevelTimeoutRef.current = setTimeout(() => {
       const nextLevel = levelRef.current + 1
+
+      // Milestone-based rating prompt (levels 3, 10, 25 — only once)
+      const RATE_MILESTONES = [3, 10, 25]
+      const clearedLevel = levelRef.current
+      if (Capacitor.isNativePlatform() && RATE_MILESTONES.includes(clearedLevel) && !localStorage.getItem('bm_rate_prompted')) {
+        localStorage.setItem('bm_rate_prompted', 'true')
+        setShowRatePrompt(true)
+        // Don't auto-advance while prompt is showing — handled by prompt dismiss
+        return
+      }
+
       if (nextLevel > 50) {
         setOverlay('game_complete')
         saveHighScore()
@@ -720,6 +752,49 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
               <button className="btn-pixel w-full py-4" onClick={() => setShowGuide(true)}>
                 POWERUP INFO
               </button>
+              {/* Earn Coin Button */}
+              <button
+                className="btn-pixel w-full py-4"
+                disabled={earningCoinPause}
+                onClick={async () => {
+                  if (earningCoinPause) return
+                  try {
+                    setEarningCoinPause(true)
+                    const now = Date.now()
+                    const fifteenMins = 15 * 60 * 1000
+                    let history = []
+                    try { history = JSON.parse(localStorage.getItem('bm_ad_timestamps') || '[]') } catch(e) {}
+                    history = history.filter(t => now - t < fifteenMins)
+                    if (history.length >= 2) {
+                      alert('You have already watched 2 ads recently. Please wait a few minutes!')
+                      setEarningCoinPause(false)
+                      return
+                    }
+                    const success = await showRewardedAd()
+                    if (success) {
+                      const currentCoins = campaign?.coins || 0
+                      const newCampaign = { ...campaign, coins: currentCoins + 1 }
+                      setCampaign(newCampaign)
+                      await saveCampaignProgress(newCampaign)
+                      history.push(now)
+                      localStorage.setItem('bm_ad_timestamps', JSON.stringify(history))
+                      alert('Awesome! You earned 1 Coin. 🪙')
+                    }
+                  } catch (e) {
+                    console.error(e)
+                  } finally {
+                    setEarningCoinPause(false)
+                  }
+                }}
+                style={{
+                  color: earningCoinPause ? 'rgba(0,255,170,0.4)' : '#00ffaa',
+                  borderColor: earningCoinPause ? 'rgba(0,255,170,0.15)' : 'rgba(0,255,170,0.4)',
+                  background: earningCoinPause ? 'rgba(0,255,170,0.03)' : 'rgba(0,255,170,0.06)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <span>📺</span> {earningCoinPause ? 'LOADING...' : 'EARN 1 COIN'}
+              </button>
               <button className="btn-pixel btn-danger w-full py-4" onClick={() => {
                 if (window.confirm("Quit to Main Menu? Progress will be lost.")) {
                   handleQuit()
@@ -859,6 +934,328 @@ export default function ClassicGameScreen({ user, campaign, setCampaign, startin
           <button className="btn-pixel btn-primary" onClick={handleQuit}>RETURN TO BASE</button>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════════
+          Rate App Prompt (milestone-based, once only)
+          ═══════════════════════════════════════════════════════ */}
+      {showRatePrompt && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 700,
+            background: 'rgba(2,2,12,0.92)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+            backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+            animation: 'fadeIn 0.3s ease-out forwards',
+          }}
+        >
+          <div
+            style={{
+              width: '90%', maxWidth: 340,
+              background: 'linear-gradient(180deg, rgba(14,14,38,0.97) 0%, rgba(6,6,20,0.97) 100%)',
+              border: '1.5px solid rgba(255,204,0,0.3)',
+              borderRadius: 24,
+              padding: '28px 24px 24px',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.7), 0 0 50px rgba(255,204,0,0.08) inset',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+              animation: 'fadeSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards',
+            }}
+          >
+            {/* Stars Row */}
+            <div style={{ display: 'flex', gap: 6, fontSize: 28 }}>
+              {'⭐⭐⭐⭐⭐'.split('').filter(c => c === '⭐').map((_, i) => (
+                <span key={i} style={{
+                  animation: `fadeSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) ${0.1 + i * 0.08}s both`,
+                  filter: 'drop-shadow(0 0 6px rgba(255,204,0,0.5))',
+                }}>⭐</span>
+              ))}
+            </div>
+
+            {/* Title */}
+            <h2 style={{
+              fontFamily: 'Rajdhani,Outfit,sans-serif',
+              fontSize: 22, fontWeight: 900,
+              letterSpacing: '0.08em', color: '#ffcc00',
+              textAlign: 'center', lineHeight: 1.2,
+              textShadow: '0 0 15px rgba(255,204,0,0.4)',
+            }}>
+              ENJOYING OMEGA ARENA?
+            </h2>
+
+            {/* Body */}
+            <p style={{
+              fontFamily: 'Outfit,sans-serif',
+              fontSize: 13, lineHeight: 1.6,
+              color: 'rgba(255,255,255,0.65)',
+              textAlign: 'center',
+            }}>
+              Your feedback helps us improve! Take a moment to rate us on the store — it really means a lot. 🙏
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 4 }}>
+              <button
+                onClick={() => {
+                  const appId = 'com.iankit.omegaarena'
+                  const platform = Capacitor.getPlatform()
+                  let url
+                  if (platform === 'android') {
+                    url = `market://details?id=${appId}`
+                  } else if (platform === 'ios') {
+                    url = `https://apps.apple.com/app/idAPPLE_APP_ID?action=write-review`
+                  } else {
+                    url = `https://play.google.com/store/apps/details?id=${appId}`
+                  }
+                  window.open(url, '_system')
+                  // Dismiss and continue to next level
+                  setShowRatePrompt(false)
+                  const nextLevel = levelRef.current + 1
+                  if (nextLevel > 50) {
+                    setOverlay('game_complete')
+                    saveHighScore()
+                  } else {
+                    levelRef.current = nextLevel
+                    loadoutRef.current = null
+                    loadLevel(nextLevel)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 15, fontWeight: 800,
+                  letterSpacing: '0.1em', color: '#ffcc00',
+                  background: 'rgba(255,204,0,0.12)',
+                  border: '1.5px solid rgba(255,204,0,0.4)',
+                  padding: '14px', borderRadius: 12, cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 0 20px rgba(255,204,0,0.1)',
+                }}
+                className="hover:bg-yellow-500/25 hover:border-yellow-400"
+              >
+                ⭐ RATE NOW
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowRatePrompt(false)
+                  const nextLevel = levelRef.current + 1
+                  if (nextLevel > 50) {
+                    setOverlay('game_complete')
+                    saveHighScore()
+                  } else {
+                    levelRef.current = nextLevel
+                    loadoutRef.current = null
+                    loadLevel(nextLevel)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 12, fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  color: 'rgba(255,255,255,0.3)',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  padding: '10px', borderRadius: 10, cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                MAYBE LATER
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          In-Game Tutorial Overlay (first Sector 1 play)
+          ═══════════════════════════════════════════════════════ */}
+      {tutorialStep >= 0 && tutorialStep < GAME_TUTORIAL_STEPS.length && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 600,
+            background: 'rgba(2,2,12,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+            backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+          }}
+          onClick={() => {
+            const nextStep = tutorialStep + 1
+            if (nextStep >= GAME_TUTORIAL_STEPS.length) {
+              // Tutorial complete
+              setTutorialStep(-1)
+              localStorage.setItem('bm_game_tutorial_done', 'true')
+              if (stateRef.current) stateRef.current.status = 'active'
+              setOverlay(null)
+            } else {
+              setTutorialStep(nextStep)
+            }
+          }}
+        >
+          <div
+            className="game-tutorial-tooltip"
+            key={tutorialStep}
+            style={{
+              width: '90%', maxWidth: 380,
+              background: 'linear-gradient(180deg, rgba(12,12,36,0.97) 0%, rgba(6,6,20,0.97) 100%)',
+              border: '1.5px solid rgba(0,212,255,0.3)',
+              borderRadius: 20,
+              padding: '24px 24px 20px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,212,255,0.12) inset',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <div style={{
+                width: 46, height: 46, borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(100,0,255,0.1))',
+                border: '1px solid rgba(0,212,255,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, boxShadow: '0 0 15px rgba(0,212,255,0.2)',
+                flexShrink: 0,
+              }}>
+                {GAME_TUTORIAL_STEPS[tutorialStep].icon}
+              </div>
+              <div>
+                <div style={{
+                  fontFamily: 'Rajdhani,Outfit,sans-serif',
+                  fontSize: 18, fontWeight: 800,
+                  letterSpacing: '0.1em', color: '#00d4ff',
+                }}>
+                  {GAME_TUTORIAL_STEPS[tutorialStep].title}
+                </div>
+                <div style={{
+                  fontFamily: 'Outfit,sans-serif',
+                  fontSize: 9, fontWeight: 600,
+                  letterSpacing: '0.2em', color: 'rgba(255,255,255,0.25)',
+                }}>
+                  TIP {tutorialStep + 1} OF {GAME_TUTORIAL_STEPS.length}
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{
+              fontFamily: 'Outfit,sans-serif',
+              fontSize: 14, lineHeight: 1.6,
+              color: 'rgba(255,255,255,0.75)',
+              marginBottom: 20,
+            }}>
+              {GAME_TUTORIAL_STEPS[tutorialStep].body}
+            </div>
+
+            {/* Progress dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
+              {GAME_TUTORIAL_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: i === tutorialStep ? 18 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    background: i === tutorialStep
+                      ? 'linear-gradient(90deg, #00d4ff, #6644ff)'
+                      : i < tutorialStep
+                        ? 'rgba(0,212,255,0.4)'
+                        : 'rgba(255,255,255,0.1)',
+                    transition: 'all 0.3s ease',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              {tutorialStep < GAME_TUTORIAL_STEPS.length - 1 && (
+                <button
+                  onClick={() => {
+                    setTutorialStep(-1)
+                    localStorage.setItem('bm_game_tutorial_done', 'true')
+                    if (stateRef.current) stateRef.current.status = 'active'
+                    setOverlay(null)
+                  }}
+                  style={{
+                    flex: 1,
+                    fontFamily: 'Rajdhani,Outfit,sans-serif',
+                    fontSize: 12, fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    color: 'rgba(255,255,255,0.3)',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '10px 16px',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  SKIP
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const nextStep = tutorialStep + 1
+                  if (nextStep >= GAME_TUTORIAL_STEPS.length) {
+                    setTutorialStep(-1)
+                    localStorage.setItem('bm_game_tutorial_done', 'true')
+                    if (stateRef.current) stateRef.current.status = 'active'
+                    setOverlay(null)
+                  } else {
+                    setTutorialStep(nextStep)
+                  }
+                }}
+                style={{
+                  flex: tutorialStep === GAME_TUTORIAL_STEPS.length - 1 ? 1 : 2,
+                  fontFamily: 'Rajdhani,Outfit,sans-serif',
+                  fontSize: 13, fontWeight: 800,
+                  letterSpacing: '0.1em',
+                  color: tutorialStep === GAME_TUTORIAL_STEPS.length - 1 ? '#00e87a' : '#00d4ff',
+                  background: tutorialStep === GAME_TUTORIAL_STEPS.length - 1
+                    ? 'rgba(0,232,122,0.1)'
+                    : 'rgba(0,212,255,0.08)',
+                  border: `1.5px solid ${tutorialStep === GAME_TUTORIAL_STEPS.length - 1 ? 'rgba(0,232,122,0.4)' : 'rgba(0,212,255,0.35)'}`,
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: tutorialStep === GAME_TUTORIAL_STEPS.length - 1
+                    ? '0 0 15px rgba(0,232,122,0.15)'
+                    : '0 0 15px rgba(0,212,255,0.1)',
+                }}
+              >
+                {tutorialStep === GAME_TUTORIAL_STEPS.length - 1 ? 'START PLAYING! →' : 'NEXT →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+// ── In-Game Tutorial Steps ──
+const GAME_TUTORIAL_STEPS = [
+  {
+    icon: '🎮',
+    title: 'MOVEMENT',
+    body: 'Use the joystick (mobile) or arrow keys (desktop) to move your pilot around the arena.',
+  },
+  {
+    icon: '💣',
+    title: 'PLANT BOMBS',
+    body: 'Tap the bomb button (mobile) or press SPACE (desktop) to plant a plasma charge. Stand back before it explodes!',
+  },
+  {
+    icon: '🧱',
+    title: 'DESTROY WALLS',
+    body: 'Blast soft walls to reveal hidden power-ups, the exit portal, and mystery eggs!',
+  },
+  {
+    icon: '👾',
+    title: 'DEFEAT ENEMIES',
+    body: 'Eliminate all enemies in the sector. Once they\'re gone, the exit gate will open.',
+  },
+  {
+    icon: '★',
+    title: 'FIND THE EXIT',
+    body: 'The exit portal is hidden under a wall. Find it, defeat all enemies, then step into the portal to advance!',
+  },
+]

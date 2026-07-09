@@ -5,6 +5,7 @@ import { isAdFree, purchaseRemoveAds, restorePurchases, getRemoveAdsPrice } from
 import { playBGM } from '../game/audio/audio'
 import { Capacitor } from '@capacitor/core'
 import PlasmaAnimation from '../components/PlasmaAnimation'
+import Walkthrough from '../components/Walkthrough'
 
 const MENU_ITEMS = [
   { id: 'classic', label: 'SOLO MODE', desc: '50 LEVELS · CAMPAIGN', icon: '⚔', infoKey: 'solo' },
@@ -50,6 +51,7 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
   const [showInfo, setShowInfo] = useState(false)
   const [infoMode, setInfoMode] = useState(null)
   const [mounted, setMounted] = useState(false)
+  const [showWalkthrough, setShowWalkthrough] = useState(false)
 
   // Admin Coins
   const [showAdminCoins, setShowAdminCoins] = useState(false)
@@ -745,6 +747,8 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
               boxShadow: '0 20px 40px rgba(0,0,0,0.5), 0 0 30px rgba(0,212,255,0.1) inset',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
               animation: 'fadeSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              maxHeight: '85vh',
+              overflowY: 'auto',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -841,6 +845,61 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* REPLAY TUTORIAL */}
+            <div style={{ width: '100%', marginTop: 8 }}>
+              <button
+                onClick={() => { setShowSettings(false); setShowWalkthrough(true) }}
+                style={{
+                  width: '100%',
+                  fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 14, fontWeight: 700,
+                  letterSpacing: '0.12em', color: '#00d4ff',
+                  background: 'rgba(0,212,255,0.08)',
+                  border: '1px solid rgba(0,212,255,0.25)',
+                  padding: '12px', borderRadius: 10, cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+                className="hover:bg-cyan-500/20 hover:border-cyan-500/50"
+              >
+                <span>📖</span> REPLAY TUTORIAL
+              </button>
+            </div>
+
+            {/* RATE US */}
+            {Capacitor.isNativePlatform() && (
+              <div style={{ width: '100%', marginTop: 8 }}>
+                <button
+                  onClick={() => {
+                    const appId = 'com.iankit.omegaarena'
+                    const platform = Capacitor.getPlatform()
+                    let url
+                    if (platform === 'android') {
+                      url = `market://details?id=${appId}`
+                    } else if (platform === 'ios') {
+                      // Replace APPLE_APP_ID with the real numeric App Store ID once published
+                      url = `https://apps.apple.com/app/idAPPLE_APP_ID?action=write-review`
+                    } else {
+                      url = `https://play.google.com/store/apps/details?id=${appId}`
+                    }
+                    window.open(url, '_system')
+                  }}
+                  style={{
+                    width: '100%',
+                    fontFamily: 'Rajdhani,Outfit,sans-serif', fontSize: 14, fontWeight: 700,
+                    letterSpacing: '0.12em', color: '#ffcc00',
+                    background: 'rgba(255,204,0,0.08)',
+                    border: '1px solid rgba(255,204,0,0.25)',
+                    padding: '12px', borderRadius: 10, cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                  }}
+                  className="hover:bg-yellow-500/20 hover:border-yellow-500/50"
+                >
+                  <span>⭐</span> RATE US
+                </button>
               </div>
             )}
 
@@ -1094,6 +1153,12 @@ export default function LandingScreen({ user, campaign, setCampaign, nav }) {
           </div>
         </div>
       )}
+
+      {/* Onboarding Walkthrough */}
+      <Walkthrough
+        forceShow={showWalkthrough}
+        onComplete={() => setShowWalkthrough(false)}
+      />
     </div>
   )
 }

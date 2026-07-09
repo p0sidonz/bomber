@@ -7,11 +7,11 @@ import { isAdFree } from './purchases.js'
 // Google Test IDs — replace with real IDs before publishing
 const INTERSTITIAL_ID = Capacitor.getPlatform() === 'ios'
   ? 'ca-app-pub-3940256099942544/4411468910'   // iOS test
-  : 'ca-app-pub-3940256099942544/1033173712'   // Android test
+  : 'ca-app-pub-5973465758706809/4524861100'   // Android prod
 
 const REWARDED_ID = Capacitor.getPlatform() === 'ios'
   ? 'ca-app-pub-3940256099942544/1712485313'   // iOS test
-  : 'ca-app-pub-3940256099942544/5224354917'   // Android test
+  : 'ca-app-pub-5973465758706809/4524861100'   // Android prod (using interstitial ID as requested)
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let isInitialized   = false
@@ -30,7 +30,6 @@ export async function initializeAdMob() {
   try {
     await AdMob.initialize({
       requestTrackingAuthorization: true,
-      initializeForTesting: true, // TODO: Remove before publishing
     })
     isInitialized = true
     console.log('[AdMob] Initialized')
@@ -50,7 +49,6 @@ async function _preloadAd() {
   try {
     await AdMob.prepareInterstitial({
       adId: INTERSTITIAL_ID,
-      isTesting: true, // TODO: Remove before publishing
     })
     adReady = true
     console.log('[AdMob] Ad pre-loaded and ready')
@@ -145,7 +143,6 @@ export async function showRewardedAd() {
       console.log('[AdMob] Preparing rewarded ad...')
       await AdMob.prepareRewardVideoAd({
         adId: REWARDED_ID,
-        isTesting: true,
       })
       console.log('[AdMob] Showing rewarded ad...')
       await AdMob.showRewardVideoAd()
